@@ -5,7 +5,7 @@ export function HomePage() {
   const isDummy = true;
   
   const dummyVids = ['/videos/ahh.mp4', '/videos/mono-no-aware.mp4', '/videos/rickroll.mp4']
-  const videoAmount = 12;
+  const videoAmount = 8;
 
   function createFootage(index: number) {
     if(isDummy) return (
@@ -41,7 +41,7 @@ export function HomePage() {
         </div>
 
         <div>
-          <div className={cn("grid grid-cols-4 gap-auto w-full min-h-screen items-center justify-items-center")}>
+          <div className={cn("grid grid-cols-4 gap-auto w-full h-fit items-center justify-items-center")}>
             {
               videoList.map((video, index) => (
                 <div

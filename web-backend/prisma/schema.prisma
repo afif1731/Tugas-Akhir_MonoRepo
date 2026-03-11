@@ -1,0 +1,269 @@
+generator client {
+  provider      = "prisma-client"
+  binaryTargets = ["native", "debian-openssl-3.0.x", "linux-musl", "linux-musl-openssl-3.0.x"]
+  output        = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum DeviceStatus {
+  ONLINE
+  OFFLINE
+  DISABLED
+  ERROR
+}
+
+enum AnomalyType {
+  ABUSE
+  ASSAULT
+  FIGHTING
+}
+
+enum PreferenceType {
+  SYSTEM_DEFAULT
+  USER_PREFERENCE
+}
+
+enum ReportType {
+  EMAIL
+  WHATSAPP
+  TELEGRAM
+}
+
+model Users {
+  id                  String              @id @default(uuid(7))
+  email               String              @unique
+  name                String
+  password            String
+  wa_number           String?
+  telegram_username   String?
+  profile_picture     String?
+
+  role                Role                @default(USER)
+
+  created_at          DateTime            @default(now())
+  updated_at          DateTime            @default(now()) @updatedAt
+
+  refresh_tokens      RefreshTokens[]
+  layout_pages        CctvLayoutPages[]
+  wa_receiver         WaReceivers[]
+  email_receiver      EmailReceivers[]
+  telegram_receiver   TelegramReceivers[]
+}
+
+model RefreshTokens {
+  id              String    @id @default(uuid(7))
+  refresh_token   String    @unique
+  user_id         String
+
+  user            Users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  expired_at      DateTime
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @default(now()) @updatedAt
+}
+
+model SystemSettings {
+  id                      String    @id @default(uuid(7))
+  video_retention_days    Int       @default(7)
+}
+
+model EdgeDevices {
+  id            String          @id @default(uuid(7))
+  name          String
+  slug          String          @unique
+  location      String?
+  max_cameras   Int             @default(1)
+  status        DeviceStatus    @default(OFFLINE)
+  error_message Json?
+
+  created_at    DateTime        @default(now())
+  updated_at    DateTime        @default(now()) @updatedAt
+
+  cameras       Cameras[]
+}
+
+model Cameras {
+  id                  String                @id @default(uuid(7))
+  name                String
+  slug                String                @unique
+  status              DeviceStatus          @default(OFFLINE)
+  cv_treshold         Float                 @default(0.8)
+  error_message       Json?
+
+  edge_device_id      String?
+  edge_device         EdgeDevices?          @relation(fields: [edge_device_id], references: [id], onDelete: Cascade)
+
+  created_at          DateTime              @default(now())
+  updated_at          DateTime              @default(now()) @updatedAt
+
+  cctv_layout_details CctvLayoutDetails[]
+  detected_anomalies  DetectedAnomalies[]
+}
+
+model CctvLayoutDetails {
+  id            String              @id @default(uuid(7))
+  layout_json   Json
+
+  created_at    DateTime            @default(now())
+  updated_at    DateTime            @default(now()) @updatedAt
+
+  cameras       Cameras[]
+  layout_pages  CctvLayoutPages[]
+}
+
+model CctvLayoutPages {
+  id                String              @id @default(uuid(7))
+  user_id           String?
+  preference        PreferenceType      @default(SYSTEM_DEFAULT)
+  page              Int
+  layout_detail_id  String
+
+  user              Users?              @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  layout_detail     CctvLayoutDetails   @relation(fields: [layout_detail_id], references: [id], onDelete: Cascade)
+
+  created_at        DateTime            @default(now())
+  updated_at        DateTime            @default(now()) @updatedAt
+}
+
+model DetectedAnomalies {
+  id                String          @id @default(uuid(7))
+  camera_id         String?
+  video_path        String
+  video_duration    Int?
+  video_start_date  DateTime?
+  video_end_date    DateTime?
+  anomaly_type      AnomalyType
+  confidence        Float
+  is_valid          Boolean?
+  is_reported       Boolean         @default(false)
+  report_sent       Json
+
+  camera            Cameras?        @relation(fields: [camera_id], references: [id], onDelete: SetNull)
+
+  created_at        DateTime        @default(now())
+  updated_at        DateTime        @default(now()) @updatedAt
+}
+
+model ReportPlatforms {
+  id                String          @id @default(uuid(7))
+  report_type       ReportType
+  platform_name     String
+  platform_slug     String          @unique
+  status            DeviceStatus    @default(ONLINE)
+
+  created_at        DateTime        @default(now())
+  updated_at        DateTime        @default(now()) @updatedAt
+
+  wa_sent_detail        WaSentDetails?
+  email_sent_detail     EmailSentDetails?
+  telegram_sent_Detail  TelegramSentDetails?
+}
+
+model WaSentDetails {
+  id                  String            @id @default(uuid(7))
+  wa_api_token        String
+  wa_number_id        String
+  // Tambahkan field lainnya kalau perlu
+
+  report_platform_id  String            @unique
+
+  report_platform     ReportPlatforms   @relation(fields: [report_platform_id], references: [id], onDelete: Cascade)
+
+  created_at          DateTime          @default(now())
+  updated_at          DateTime          @default(now()) @updatedAt
+
+  receivers           WaReceivers[]
+}
+
+model WaReceivers {
+  id                String          @id @default(uuid(7))
+  name              String
+  wa_number         String
+  wa_sent_detail_id String
+  user_id           String?
+  is_activated      Boolean         @default(true)
+
+  user              Users?          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  wa_sent_detail    WaSentDetails   @relation(fields: [wa_sent_detail_id], references: [id], onDelete: Cascade)
+
+  created_at        DateTime        @default(now())
+  updated_at        DateTime        @default(now()) @updatedAt
+
+  @@unique([wa_number, wa_sent_detail_id])
+}
+
+model EmailSentDetails {
+  id                    String            @id @default(uuid(7))
+  email_cred_username   String            @unique
+  email_cred_password   String
+  email_sender_name     String
+  email_sender_address  String            @unique
+  // Tambahkan field lainnya kalau perlu
+
+  report_platform_id    String            @unique
+
+  report_platform       ReportPlatforms   @relation(fields: [report_platform_id], references: [id], onDelete: Cascade)
+
+  created_at            DateTime          @default(now())
+  updated_at            DateTime          @default(now()) @updatedAt
+
+  receivers             EmailReceivers[]
+}
+
+model EmailReceivers {
+  id                      String              @id @default(uuid(7))
+  name                    String
+  email                   String
+  email_sent_detail_id    String
+  user_id                 String?
+  is_activated            Boolean             @default(true)
+
+  user                    Users?              @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  email_sent_detail       EmailSentDetails    @relation(fields: [email_sent_detail_id], references: [id], onDelete: Cascade)
+
+  created_at              DateTime            @default(now())
+  updated_at              DateTime            @default(now()) @updatedAt
+
+  @@unique([email, email_sent_detail_id])
+}
+
+model TelegramSentDetails {
+  id                   String                @id @default(uuid(7))
+  telegram_username    String
+  telegram_api_token   String
+  // Tambahkan field lainnya kalau perlu
+
+  report_platform_id   String                @unique
+
+  report_platform      ReportPlatforms       @relation(fields: [report_platform_id], references: [id], onDelete: Cascade)
+
+  created_at           DateTime              @default(now())
+  updated_at           DateTime              @default(now()) @updatedAt
+
+  receivers            TelegramReceivers[]
+}
+
+model TelegramReceivers {
+  id                        String                @id @default(uuid(7))
+  name                      String
+  telegram_chat_id          String
+  telegram_sent_detail_id   String
+  user_id                   String?
+  is_activated              Boolean               @default(true)
+
+  user                      Users?                @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  telegram_sent_detail      TelegramSentDetails   @relation(fields: [telegram_sent_detail_id], references: [id], onDelete: Cascade)
+
+  created_at                DateTime              @default(now())
+  updated_at                DateTime              @default(now()) @updatedAt
+
+  @@unique([telegram_chat_id, telegram_sent_detail_id])
+}

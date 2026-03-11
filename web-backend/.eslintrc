@@ -1,0 +1,297 @@
+{
+  "env": {
+    "node": true,
+    "es2021": true
+  },
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaVersion": 2022,
+    "sourceType": "module",
+    "project": ["./tsconfig.eslint.json"]
+  },
+  "settings": {
+    "import/resolver": {
+      "typescript": {},
+      "node": {
+        "extensions": [".js", ".ts"]
+      }
+    }
+  },
+  "extends": [
+    "code-style-lint-ts",
+    "prettier",
+    "plugin:unicorn/recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:@typescript-eslint/recommended-requiring-type-checking"
+  ],
+  "plugins": [
+    "import",
+    "prettier",
+    "@typescript-eslint",
+    "simple-import-sort"
+  ],
+  "overrides": [
+    {
+      "files": ["main.ts"],
+      "rules": {
+        "unicorn/prefer-top-level-await": "off",
+        "@typescript-eslint/no-floating-promises": "off"
+      }
+    },
+    {
+      "files": ["prisma.config.ts"],
+      "rules": {
+        "@typescript-eslint/no-unsafe-call": "off",
+        "@typescript-eslint/require-await": "off",
+        "@typescript-eslint/no-misused-promises": "off"
+      }
+    },
+    {
+      "files": ["prisma/seeder/seed/*"],
+      "rules": {
+        "@typescript-eslint/no-unsafe-assignment": "off",
+        "unicorn/prefer-module": "off",
+        "@typescript-eslint/restrict-template-expressions": "off"
+      }
+    },
+    {
+      "files": ["prisma/seeder/seeder.ts"],
+      "rules": {
+        "unicorn/no-process-exit": "off",
+        "@typescript-eslint/no-floating-promises": "off",
+        "unicorn/prefer-top-level-await": "off"
+      }
+    },
+    {
+      "files": ["**/*.js"],
+      "rules": {
+        "no-undef": "off",
+        "unicorn/prefer-module": "off",
+        "@typescript-eslint/no-var-requires": "off"
+      }
+    },
+    {
+      "files": ["**/*.{spec,test}.{ts,tsx}"],
+      "rules": {
+        "unicorn/prefer-module": "off",
+        "@typescript-eslint/no-var-requires": "off"
+      }
+    },
+    {
+      "files": ["next-seo.config.ts"],
+      "rules": {
+        "unicorn/filename-case": "off"
+      }
+    },
+    {
+      "files": ["**/*.d.ts"],
+      "rules": {
+        "@typescript-eslint/naming-convention": "off",
+        "@typescript-eslint/no-empty-interface": "off",
+        "unicorn/filename-case": [
+          "error",
+          {
+            "case": "kebabCase"
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/**/schema/*", "src/common/**"],
+      "rules": {
+        "unicorn/filename-case": "off",
+        "@typescript-eslint/naming-convention": [
+          "error",
+          {
+            "selector": "interface",
+            "format": ["PascalCase"],
+            "custom": {
+              "regex": "^I[A-Z]",
+              "match": true
+            }
+          },
+          {
+            "selector": "typeAlias",
+            "format": ["PascalCase"],
+            "custom": {
+              "regex": "^I[A-Z]",
+              "match": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/common/responses/*"],
+      "rules": {
+        "@typescript-eslint/no-unsafe-assignment": "off"
+      }
+    },
+    {
+      "files": ["src/utils/**"],
+      "rules": {
+        "@typescript-eslint/naming-convention": "off"
+      }
+    }
+  ],
+  "rules": {
+    "prettier/prettier": "error",
+    "import/no-default-export": "error",
+    "import-helpers/order-imports": "off",
+    "unicorn/no-static-only-class": "off",
+    "@typescript-eslint/consistent-indexed-object-style": "error",
+    "unicorn/no-null": "off",
+    "node/no-missing-import": "off",
+    "node/no-unpublished-import": "off",
+    "import/prefer-default-export": "off",
+    "quote-props": ["error", "consistent-as-needed"],
+    "simple-import-sort/imports": "error",
+    "simple-import-sort/exports": "error",
+    "arrow-body-style": ["error", "as-needed"],
+    "import/no-duplicates": [
+      "error",
+      {
+        "prefer-inline": true
+      }
+    ],
+    "import/consistent-type-specifier-style": ["error", "prefer-inline"],
+    "@typescript-eslint/consistent-type-definitions": ["error", "interface"],
+    "import/no-extraneous-dependencies": [
+      "error",
+      {
+        "devDependencies": true
+      }
+    ],
+    "@typescript-eslint/consistent-type-imports": [
+      "error",
+      {
+        "prefer": "type-imports"
+      }
+    ],
+    "unicorn/prevent-abbreviations": [
+      "error",
+      {
+        "replacements": {
+          "props": {
+            "properties": false
+          },
+          "env": {
+            "environment": false
+          },
+          "ref": {
+            "reference": false
+          },
+          "args": {
+            "arguments": false
+          }
+        }
+      }
+    ],
+    "unicorn/filename-case": [
+      "error",
+      {
+        "cases": {
+          "kebabCase": true,
+          "pascalCase": true
+        }
+      }
+    ],
+    "padding-line-between-statements": [
+      "error",
+      {
+        "blankLine": "always",
+        "prev": "*",
+        "next": "return"
+      },
+      {
+        "blankLine": "always",
+        "prev": "*",
+        "next": "try"
+      },
+      {
+        "blankLine": "always",
+        "prev": "try",
+        "next": "*"
+      },
+      {
+        "blankLine": "always",
+        "prev": "*",
+        "next": "block-like"
+      },
+      {
+        "blankLine": "always",
+        "prev": "block-like",
+        "next": "*"
+      },
+      {
+        "blankLine": "always",
+        "prev": "*",
+        "next": "throw"
+      },
+      {
+        "blankLine": "always",
+        "prev": "var",
+        "next": "*"
+      }
+    ],
+    "@typescript-eslint/naming-convention": [
+      "error",
+      {
+        "selector": "default",
+        "format": ["camelCase", "PascalCase", "snake_case", "UPPER_CASE"],
+        "filter": {
+          "regex": "^_.*$",
+          "match": false
+        }
+      },
+      {
+        "selector": "variable",
+        "format": ["camelCase", "UPPER_CASE"]
+      },
+      {
+        "selector": "interface",
+        "format": ["PascalCase"],
+        "custom": {
+          "regex": "^I[A-Z]",
+          "match": true
+        }
+      },
+      {
+        "selector": "typeAlias",
+        "format": ["PascalCase"],
+        "custom": {
+          "regex": "[A-Z]*Props$",
+          "match": true
+        }
+      },
+      {
+        "selector": "memberLike",
+        "modifiers": ["private"],
+        "format": ["camelCase"],
+        "leadingUnderscore": "forbid"
+      },
+      {
+        "selector": "variable",
+        "types": ["boolean"],
+        "format": ["PascalCase"],
+        "prefix": ["is", "should", "has", "can", "did", "will"]
+      },
+      {
+        "selector": "class",
+        "format": ["PascalCase"],
+        "custom": {
+          "regex": "^[A-Za-z]*(Service|Controller)$",
+          "match": true
+        }
+      }
+    ],
+    "import/extensions": [
+      "error",
+      "ignorePackages",
+      {
+        "js": "never",
+        "ts": "never"
+      }
+    ]
+  }
+}

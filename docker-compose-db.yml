@@ -1,0 +1,39 @@
+name: mocavis-be
+
+services:
+  mocavis-be-database:
+    container_name: mocavis-postgres
+    image: postgres:17
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_NAME}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - ${POSTGRES_PORT}:5432
+    expose:
+      - ${POSTGRES_PORT}
+    volumes:
+      - ./docker/volumes/:/var/lib/postgresql/data
+    networks:
+      - mocavis-network
+
+  mocavis-be-redis:
+    image: redis:latest
+    container_name: mocavis-redis
+    ports:
+      - ${REDIS_PORT}:6379
+    expose:
+      - ${REDIS_PORT}
+    restart: always
+    volumes:
+      - ./conf/redis.conf:/etc/redis/redis.conf
+    networks:
+      - mocavis-network
+
+volumes:
+  postgres:
+
+networks:
+  mocavis-network:
+    driver: bridge

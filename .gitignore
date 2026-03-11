@@ -11,3 +11,11 @@ wheels/
 _dataset/
 _model/
 _reference/
+
+# Docker
+docker/
+
+# Env
+.env
+.env.*
+!.env.example

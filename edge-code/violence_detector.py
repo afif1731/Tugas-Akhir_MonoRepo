@@ -144,7 +144,7 @@ class ViolenceDetector:
                     bbox = box.xyxy[0].cpu().numpy()
                     kpts_data = kpts.data[0].cpu().numpy()
                     class_name, confidence = self.classify_pose(kpts_data)
-                    if class_name != CLASS_NAMES[0] and confidence > self.conf_threshold:
+                    if confidence > self.conf_threshold:
                         color = self.colors.get(class_name, (0, 255, 0))
                         self.draw_bbox(frame, bbox, class_name, confidence, color)
                         self.draw_skeleton(frame, kpts_data, color)

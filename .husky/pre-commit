@@ -1,0 +1,1 @@
+cd web-backend && bunx --no-install lint-staged
