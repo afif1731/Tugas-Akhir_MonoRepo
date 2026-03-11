@@ -1,7 +1,7 @@
 {
   "name": "bun-elysia-api",
   "version": "1.0.0",
-  "private": true,
+  "private": false,
   "main": "src/main.ts",
   "scripts": {
     "build": "bun build src/main.ts --target bun --outdir ./dist",
@@ -22,13 +22,13 @@
     "migrate:dev:reset": "dotenv -e ../.env.development -- prisma migrate reset --schema ./prisma/schema.prisma",
     "migrate:prod": "dotenv -e ../.env.production -- prisma migrate dev --schema ./prisma/schema.prisma && bun generate:prod",
     "migrate:prod:reset": "dotenv -e ../.env.production -- prisma migrate reset --schema ./prisma/schema.prisma",
+    "prepare": "husky",
     "seed:dev": "dotenv -e ../.env.development -- bun ./prisma/seeder/seeder.ts",
     "seed:prod": "dotenv -e ../.env.production -- bun ./prisma/seeder/seeder.ts",
     "sort:package": "sort-package-json",
     "start": "dotenv -e ../.env.production -- NODE_ENV=production ./server",
     "start-deploy:dev": "dotenv -e ../.env.development -- ./server",
-    "start:dev": "dotenv -e ../.env.development -- bun run --watch src/main.ts",
-    "prepare": "husky"
+    "start:dev": "dotenv -e ../.env.development -- bun run --watch src/main.ts"
   },
   "lint-staged": {
     "package.json": "bun sort:package",

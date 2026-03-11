@@ -9,6 +9,9 @@ on:
 jobs:
   be-build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./web-backend
 
     strategy:
       matrix:
@@ -27,8 +30,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-      - run: cd web-backend
-      - run: bun install
-      - run: bun generate
-      - run: bun lint
-      - run: bun build:binary
+
+      - name: Install Dependencies
+        run: bun install
+        
+      - name: Generate
+        run: bun generate
+        
+      - name: Lint
+        run: bun lint
+        
+      - name: Build Binary
+        run: bun build:binary

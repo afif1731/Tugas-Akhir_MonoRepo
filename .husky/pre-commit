@@ -1,1 +1,15 @@
-cd web-backend && bunx --no-install lint-staged
+#!/usr/bin/env sh
+
+echo "🔍 Running Backend Pre-Commit..."
+cd web-backend
+bunx --no-install lint-staged
+
+BACKEND_STATUS=$?
+cd ..
+
+if [ $BACKEND_STATUS -ne 0 ]; then
+  echo "❌ Failed in Backend Pre-Commit"
+  exit 1
+fi
+
+echo "✅ All pre-commit success."

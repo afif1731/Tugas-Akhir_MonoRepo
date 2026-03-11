@@ -1,15 +1,17 @@
-# Python-generated files
+# Generated files
 __pycache__/
 *.py[oc]
 build/
 dist/
 wheels/
 *.egg-info
+node_modules/
 
 # Virtual environments
 .venv
+
+# Big Folder
 _dataset/
-_model/
 _reference/
 
 # Docker

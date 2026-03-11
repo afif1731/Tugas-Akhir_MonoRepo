@@ -1,0 +1,21 @@
+{
+  "name": "moca-vision-monorepo",
+  "version": "1.0.0",
+  "type": "module",
+  "license": "MIT",
+  "private": false,
+  "devDependencies": {
+    "@types/bun": "latest",
+    "dotenv-cli": "^11.0.0",
+    "husky": "^9.1.7"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "scripts": {
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "dotenv": "^17.3.1"
+  }
+}
