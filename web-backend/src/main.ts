@@ -13,6 +13,7 @@ import { StatusCodes } from 'http-status-codes';
 
 import { ApiRouter } from './api/router';
 import { ErrorResponse, LoggerConfig, SuccessResponse } from './common';
+import { systemCronjobs } from './utils';
 
 const nodeEnv = process.env['NODE_ENV'] || 'development';
 const loggerConfig = LoggerConfig[nodeEnv] || LoggerConfig.development;
@@ -75,6 +76,7 @@ const app = new Elysia({
       FE_URL: t.String({ minLength: 1, error: 'FE_URL is required' }),
     }),
   )
+  .use(systemCronjobs)
   .error({ ErrorResponse })
   .onAfterHandle(({ set, response, log, request, store }) => {
     if (nodeEnv === 'production' && response instanceof SuccessResponse) {

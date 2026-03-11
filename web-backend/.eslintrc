@@ -132,6 +132,12 @@
       "rules": {
         "@typescript-eslint/naming-convention": "off"
       }
+    },
+    {
+      "files": ["src/utils/cronjobs/*"],
+      "rules": {
+        "@typescript-eslint/no-explicit-any": "off"
+      }
     }
   ],
   "rules": {

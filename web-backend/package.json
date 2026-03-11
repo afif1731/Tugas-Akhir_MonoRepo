@@ -27,7 +27,8 @@
     "sort:package": "sort-package-json",
     "start": "dotenv -e ../.env.production -- NODE_ENV=production ./server",
     "start-deploy:dev": "dotenv -e ../.env.development -- ./server",
-    "start:dev": "dotenv -e ../.env.development -- bun run --watch src/main.ts"
+    "start:dev": "dotenv -e ../.env.development -- bun run --watch src/main.ts",
+    "prepare": "husky"
   },
   "lint-staged": {
     "package.json": "bun sort:package",
@@ -39,6 +40,7 @@
     "@bogeychan/elysia-logger": "^0.1.10",
     "@elysiajs/bearer": "^1.1.2",
     "@elysiajs/cors": "^1.1.1",
+    "@elysiajs/cron": "^1.4.1",
     "@elysiajs/jwt": "^1.1.1",
     "@elysiajs/swagger": "^1.1.6",
     "@prisma/adapter-pg": "^7.4.2",
