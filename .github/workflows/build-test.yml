@@ -36,6 +36,8 @@ jobs:
         
       - name: Generate
         run: bun generate
+        env:
+          DATABASE_URL: "postgresql://johndoe:randompassword@localhost:5432/mydb"
         
       - name: Lint
         run: bun lint
