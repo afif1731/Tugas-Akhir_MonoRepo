@@ -8,7 +8,6 @@ import {
   type ILoginRequest,
   type ILoginResponse,
   type IRegisterRequest,
-  type IUserProfileResponse,
 } from './schema';
 
 export abstract class AuthService {
@@ -186,25 +185,5 @@ export abstract class AuthService {
     });
 
     return;
-  }
-
-  static async getUserDetail(user_id: string): Promise<IUserProfileResponse> {
-    const isUserExist = await prisma.users.findUnique({
-      where: { id: user_id },
-    });
-
-    if (!isUserExist)
-      throw new ErrorResponse(
-        StatusCodes.NOT_FOUND,
-        `User with id ${user_id} not found.`,
-      );
-
-    return {
-      id: isUserExist.id,
-      name: isUserExist.name,
-      email: isUserExist.email,
-      role: isUserExist.role,
-      created_at: isUserExist.created_at,
-    };
   }
 }

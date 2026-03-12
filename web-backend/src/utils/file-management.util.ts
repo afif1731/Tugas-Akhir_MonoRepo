@@ -17,10 +17,10 @@ export abstract class FileManager {
     let cleaned = path
       .basename(file.name, fileExtension)
       .replaceAll(/[^\w -]/g, '');
-    cleaned = cleaned.replaceAll(/\s+/g, '_');
+    cleaned = cleaned.replaceAll(/\s+/g, '_').slice(0, 120);
 
     const timestamp = Date.now();
-    const newFileName = `${cleaned}_${timestamp}${path.extname(file.name)}`;
+    const newFileName = `${cleaned}_${timestamp}${fileExtension}`;
 
     const newFilePath = `uploads/${file_folder_path}/${newFileName}`;
 

@@ -1,10 +1,11 @@
 import Elysia from 'elysia';
 import { StatusCodes } from 'http-status-codes';
 
-import { AuthPlugin, SuccessResponse } from '@/common';
+import { SuccessResponse } from '@/common';
 import { CookieUtils } from '@/utils';
 
 import { AuthService } from './auth.service';
+import { AuthMeController } from './auth-me/auth-me.controller';
 import { LoginRequestSchema, RegisterRequestSchema } from './schema';
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -82,22 +83,7 @@ export const AuthController = new Elysia({ name: 'auth-controller' }).group(
 
         return new SuccessResponse(StatusCodes.OK, 'Logout successfully');
       })
-      .use(AuthPlugin)
-      .get(
-        '/me',
-        async ({ user }) => {
-          const result = await AuthService.getUserDetail(user.id);
-
-          return new SuccessResponse(
-            StatusCodes.OK,
-            'Get user detail successfully',
-            result,
-          );
-        },
-        {
-          authPlugin: {},
-        },
-      );
+      .use(AuthMeController);
 
     return app;
   },

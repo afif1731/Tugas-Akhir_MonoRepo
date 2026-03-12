@@ -1,9 +1,9 @@
 import { t } from 'elysia';
 
-import { EmailSchema, StringSchema } from '@/common';
+import { StringSchema } from '@/common';
 
 export const RegisterRequestSchema = t.Object({
-  email: EmailSchema,
+  email: StringSchema.email,
   name: StringSchema.text,
   password: StringSchema.password,
   confirm_password: StringSchema.password,

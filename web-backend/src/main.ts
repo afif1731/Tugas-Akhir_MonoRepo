@@ -12,7 +12,13 @@ import { Elysia, t } from 'elysia';
 import { StatusCodes } from 'http-status-codes';
 
 import { ApiRouter } from './api/router';
-import { ErrorResponse, LoggerConfig, SuccessResponse } from './common';
+import {
+  databasePool as databasePool,
+  ErrorResponse,
+  LoggerConfig,
+  prisma,
+  SuccessResponse,
+} from './common';
 import { systemCronjobs } from './utils';
 
 const nodeEnv = process.env['NODE_ENV'] || 'development';
@@ -23,7 +29,7 @@ const uploadFileFolder = process.env.FILE_STORAGE_PATH || 'uploads';
 (async () => {
   if (!existsSync(uploadFileFolder)) {
     await mkdir(uploadFileFolder, { recursive: true });
-    console.log(` Upload Folder created in path ${uploadFileFolder}`);
+    console.log(`Upload Folder created in path ${uploadFileFolder}`);
   }
 })();
 
@@ -65,8 +71,7 @@ const app = new Elysia({
         error: 'JWT_ACCESS_SECRET is required',
       }),
       JWT_REFRESH_SECRET: t.String({
-        default:
-          'VQvJF4b7xtJyyqvZ7bLrgpnYKGXlgCuSiTQnzgQXEWhtftLaHE8NAYoNuQPK62Tv',
+        default: 'super-secret-string',
       }),
       DATABASE_URL: t.String({
         minLength: 1,
@@ -245,8 +250,24 @@ const app = new Elysia({
     message: `Current Time: ${new Date()}`, // eslint-disable-line @typescript-eslint/restrict-template-expressions
   }))
   .group('/api', app => app.use(ApiRouter))
+  .onStop(async () => {
+    try {
+      await prisma.$disconnect();
+      await databasePool.end();
+    } catch (error) {
+      console.error('Failed to shutting down server.', error);
+    }
+  })
   .listen(process.env.PORT || 4000);
 
 console.log(
   `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
 );
+
+process.on('SIGINT', () => {
+  app.stop();
+});
+
+process.on('SIGTERM', () => {
+  app.stop();
+});

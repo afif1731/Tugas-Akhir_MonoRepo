@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-misused-promises */
+/* eslint-disable @typescript-eslint/require-await */
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 
@@ -6,8 +8,8 @@ import { logger } from './logger.config';
 
 const connectionString = process.env.DATABASE_URL!;
 
-const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
+export const databasePool = new Pool({ connectionString });
+const adapter = new PrismaPg(databasePool);
 
 export const prisma = new PrismaClient({
   adapter,

@@ -109,14 +109,16 @@ model Cameras {
 }
 
 model CctvLayoutDetails {
-  id            String              @id @default(uuid(7))
-  layout_json   Json
+  id              String              @id @default(uuid(7))
+  layout_page_id  String              @unique
+  layout_json     Json
 
-  created_at    DateTime            @default(now())
-  updated_at    DateTime            @default(now()) @updatedAt
+  layout_pages  CctvLayoutPages       @relation(fields: [layout_page_id], references: [id], onDelete: Cascade)
+
+  created_at      DateTime            @default(now())
+  updated_at      DateTime            @default(now()) @updatedAt
 
   cameras       Cameras[]
-  layout_pages  CctvLayoutPages[]
 }
 
 model CctvLayoutPages {
@@ -124,13 +126,13 @@ model CctvLayoutPages {
   user_id           String?
   preference        PreferenceType      @default(SYSTEM_DEFAULT)
   page              Int
-  layout_detail_id  String
 
   user              Users?              @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  layout_detail     CctvLayoutDetails   @relation(fields: [layout_detail_id], references: [id], onDelete: Cascade)
 
   created_at        DateTime            @default(now())
   updated_at        DateTime            @default(now()) @updatedAt
+
+  layout_detail     CctvLayoutDetails?
 }
 
 model DetectedAnomalies {

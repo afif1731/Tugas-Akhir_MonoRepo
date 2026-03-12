@@ -82,6 +82,7 @@ CREATE TABLE "Cameras" (
 -- CreateTable
 CREATE TABLE "CctvLayoutDetails" (
     "id" TEXT NOT NULL,
+    "layout_page_id" TEXT NOT NULL,
     "layout_json" JSONB NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -95,7 +96,6 @@ CREATE TABLE "CctvLayoutPages" (
     "user_id" TEXT,
     "preference" "PreferenceType" NOT NULL DEFAULT 'SYSTEM_DEFAULT',
     "page" INTEGER NOT NULL,
-    "layout_detail_id" TEXT NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -235,6 +235,9 @@ CREATE UNIQUE INDEX "EdgeDevices_slug_key" ON "EdgeDevices"("slug");
 CREATE UNIQUE INDEX "Cameras_slug_key" ON "Cameras"("slug");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "CctvLayoutDetails_layout_page_id_key" ON "CctvLayoutDetails"("layout_page_id");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "ReportPlatforms_platform_slug_key" ON "ReportPlatforms"("platform_slug");
 
 -- CreateIndex
@@ -271,10 +274,10 @@ ALTER TABLE "RefreshTokens" ADD CONSTRAINT "RefreshTokens_user_id_fkey" FOREIGN 
 ALTER TABLE "Cameras" ADD CONSTRAINT "Cameras_edge_device_id_fkey" FOREIGN KEY ("edge_device_id") REFERENCES "EdgeDevices"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "CctvLayoutPages" ADD CONSTRAINT "CctvLayoutPages_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "Users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "CctvLayoutDetails" ADD CONSTRAINT "CctvLayoutDetails_layout_page_id_fkey" FOREIGN KEY ("layout_page_id") REFERENCES "CctvLayoutPages"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "CctvLayoutPages" ADD CONSTRAINT "CctvLayoutPages_layout_detail_id_fkey" FOREIGN KEY ("layout_detail_id") REFERENCES "CctvLayoutDetails"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "CctvLayoutPages" ADD CONSTRAINT "CctvLayoutPages_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "Users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "DetectedAnomalies" ADD CONSTRAINT "DetectedAnomalies_camera_id_fkey" FOREIGN KEY ("camera_id") REFERENCES "Cameras"("id") ON DELETE SET NULL ON UPDATE CASCADE;

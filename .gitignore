@@ -13,6 +13,7 @@ node_modules/
 # Big Folder
 _dataset/
 _reference/
+file-storage/
 
 # Docker
 docker/

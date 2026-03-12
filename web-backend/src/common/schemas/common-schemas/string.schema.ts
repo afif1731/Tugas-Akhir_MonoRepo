@@ -15,4 +15,10 @@ export const StringSchema = {
   longtext: t.String({ minLength: 1, maxLength: 512 }),
   paragraph: t.String({ minLength: 1, maxLength: 5120 }),
   uuid: t.String({ format: 'uuid' }),
+  email: t.String({
+    minLength: 1,
+    maxLength: 256,
+    format: 'email',
+    error: 'Email must not be empty',
+  }),
 } as const;

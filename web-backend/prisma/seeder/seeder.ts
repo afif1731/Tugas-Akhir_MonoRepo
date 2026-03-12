@@ -1,4 +1,4 @@
-import { prisma } from '../../src/common';
+import { databasePool as databasePool, prisma } from '../../src/common';
 import { systemSettingsSeed, usersSeed } from './seed';
 
 async function main() {
@@ -7,13 +7,15 @@ async function main() {
   try {
     await systemSettingsSeed();
     await usersSeed();
-
-    console.log('✅ Seeding success');
   } catch (error) {
     console.error('⛔ Seeding error:', error);
     process.exit(1);
   } finally {
+    console.log('✅ Seeding success');
+
     await prisma.$disconnect();
+    await databasePool.end();
+    process.exit(0);
   }
 }
 
