@@ -1,6 +1,8 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 
+import { type IRegisteredFilePath } from '@/common';
+
 const uploadFileFolder = process.env.FILE_STORAGE_PATH || 'uploads';
 
 export abstract class FileManager {
@@ -9,7 +11,7 @@ export abstract class FileManager {
    * @param {string} file_folder_path lokasi upload file dengan format /uploads/{file_folder_path}/{filename}
    * @param {File} file file yang mau diupload
    */
-  static async upload(file_folder_path: string, file?: File) {
+  static async upload(file_folder_path: IRegisteredFilePath, file?: File) {
     if (!file) return;
 
     const fileExtension = path.extname(file.name);
