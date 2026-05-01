@@ -15,7 +15,7 @@ export const AuthMeController = new Elysia({ name: 'auth-me-controller' })
       .get(
         '/',
         async ({ user }) => {
-          const result = await AuthMeService.getMeDetail(user.id);
+          const result = await AuthMeService.getMeDetail(user!.id);
 
           return new SuccessResponse(
             StatusCodes.OK,
@@ -30,7 +30,7 @@ export const AuthMeController = new Elysia({ name: 'auth-me-controller' })
       .patch(
         '/',
         async ({ user, body }) => {
-          const result = await AuthMeService.updateMeDetail(user.id, body);
+          const result = await AuthMeService.updateMeDetail(user!.id, body);
 
           return new SuccessResponse(
             StatusCodes.OK,
@@ -46,7 +46,7 @@ export const AuthMeController = new Elysia({ name: 'auth-me-controller' })
       .delete(
         '/',
         async ({ user, cookie }) => {
-          await AuthMeService.deleteMe(user.id, user.role);
+          await AuthMeService.deleteMe(user!.id, user!.role);
 
           CookieUtils.removeTokenCookie(cookie);
 

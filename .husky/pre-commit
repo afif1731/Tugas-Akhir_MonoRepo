@@ -1,14 +1,26 @@
 #!/usr/bin/env sh
 
+# --- Backend Check ---
 echo "🔍 Running Backend Pre-Commit..."
 cd web-backend
 bunx --no-install lint-staged
-
 BACKEND_STATUS=$?
 cd ..
 
 if [ $BACKEND_STATUS -ne 0 ]; then
   echo "❌ Failed in Backend Pre-Commit"
+  exit 1
+fi
+
+# --- Frontend Check ---
+echo "🔍 Running Frontend Pre-Commit..."
+cd web-frontend
+bunx lint-staged && bun typecheck
+FRONTEND_STATUS=$?
+cd ..
+
+if [ $FRONTEND_STATUS -ne 0 ]; then
+  echo "❌ Failed in Frontend Pre-Commit"
   exit 1
 fi
 

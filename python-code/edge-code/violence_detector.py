@@ -1,213 +1,173 @@
+import os
 import cv2
 import torch
+import asyncio
 import numpy as np
-import torch.nn as nn
-from flask import Flask, Response
-import requests
-import psutil
-import time
+from dotenv import load_dotenv
+from gcn_model import GCN_LSTM, device, A
+from livekit_access_token import fetch_access_token, token_renewal_loop
+from collections import deque
 from ultralytics import YOLO
-from yolo_classifier import YOLOPoseVideoClassifier
+from livekit import rtc
 
-app = Flask(__name__)
+# ==========================================
+# KONFIGURASI
+# ==========================================
+load_dotenv()
 
-# Configuration
-HOST = '0.0.0.0'
-PORT = 5001
-MODEL_PATH = './_model/yolo_pose_violence_classifier.pth'
-YOLO_MODEL_PATH = './_model/yolo11n-pose.pt'
-CAMERA_URL = 'http://localhost:5000/video_feed'
+INPUT_SOURCE = 0
 
-CLASS_NAMES = ["non_violence", "physical_violence", "sexual_violence"]
+LIVEKIT_URL = os.getenv('LIVEKIT_URL', 'ws://127.0.0.1:7880')
+BACKEND_URL = os.getenv('VITE_API_URL', 'http://localhost:4000')
+API_KEY = os.getenv('LIVEKIT_API_KEY', 'dev_key')
+API_SECRET = os.getenv('LIVEKIT_API_SECRET', 'supersecretvalue')
+ROOM_NAME = os.getenv('LIVEKIT_ROOM_NAME', 'surveillance_room')
 
-# ------------------------------
-# Violence Detector
-# ------------------------------
-class ViolenceDetector:
-    def __init__(self, model_path, camera_url, conf_threshold=0.5):
-        self.model_path = model_path
-        self.camera_url = camera_url
-        self.conf_threshold = conf_threshold
-        
-        print("Loading YOLO11n-pose model...")
-        self.pose_model = YOLO(YOLO_MODEL_PATH)
-        
-        print(f"Loading violence classifier from {model_path}...")
-        checkpoint = torch.load(model_path, map_location='cpu')
-        
-        # Buat model dan load bobot
-        self.classifier = YOLOPoseVideoClassifier(num_classes=len(CLASS_NAMES))
-        self.classifier.load_state_dict(checkpoint['model_state_dict'])
-        self.classifier.eval()
-        
-        self.class_names = CLASS_NAMES
-        self.colors = {
-            "physical_violence": (0, 0, 255),
-            "sexual_violence": (0, 165, 255)
-        }
-        
-        self.fps = 0
-        self.frame_count = 0
-        self.start_time = time.time()
+YOLO_PATH = "./edge-code/_model/yolov8n-pose.pt"
+GCN_PATH = "./_model/GCN_LSTM_best.pth"
+CAMERA_NAME = "CCTV TW2-701"
+
+DEVICE_ID = "019cf0e8-c7c5-7ad1-b796-dcb62eb5ec19"
+CAMERA_ID = "019cf0ea-cfe6-7d61-bd35-ee71fbbf8c2d"
+LIVEKIT_TRACK_NAME = f"track_{CAMERA_ID}"
+
+CLASSES = ['assault', 'fighting', 'shooting', 'robbery', 'normal_event']
+T, V, M = 100, 17, 3  # Time frames, Vertices (joints), Max People
+
+HIDDEN_GCN = 64
+HIDDEN_LSTM = 256
+LSTM_LAYERS = 1
+
+print("[INFO] Memuat Model AI...")
+yolo_model = YOLO(YOLO_PATH)
+gcn_lstm_model = GCN_LSTM(
+    hidden_gcn=HIDDEN_GCN,
+    hidden_lstm=HIDDEN_LSTM,
+    lstm_layers=LSTM_LAYERS
+).to(device)
+gcn_lstm_model.load_state_dict(torch.load(GCN_PATH, map_location=device))
+gcn_lstm_model.eval()
+
+async def main():
+    # --- SETUP LIVEKIT ---
+    print("[INFO] Meminta token awal dari backend...")
+    token = await fetch_access_token(
+        device_id=DEVICE_ID,
+        camera_id=CAMERA_ID,
+        api_secret=API_SECRET,
+        backend_url=BACKEND_URL
+    )
     
-    def extract_pose_features(self, keypoints):
-        """
-        Extract keypoints (17x3) jadi format (1, num_frames=1, 17, 3)
-        karena model di-train dengan sequence video, 
-        tapi inference kita hanya 1 frame.
-        """
-        features = torch.tensor(keypoints, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
-        return features  # shape: (1, 1, 17, 3)
-    
-    def classify_pose(self, keypoints):
-        """Klasifikasi pose"""
-        try:
-            features = self.extract_pose_features(keypoints)
-            with torch.no_grad():
-                outputs = self.classifier(features)
-                probabilities = torch.softmax(outputs, dim=1)
-                confidence, predicted = torch.max(probabilities, 1)
-            
-            class_name = self.class_names[predicted.item()]
-            conf = confidence.item()
-            return class_name, conf
-        except Exception as e:
-            print(f"Classification error: {e}")
-            return "non_violence", 0.0
-    
-    def draw_skeleton(self, frame, keypoints, color):
-        skeleton = [
-            [16, 14], [14, 12], [17, 15], [15, 13],
-            [12, 13], [6, 12], [7, 13], [6, 7],
-            [6, 8], [8, 10], [7, 9], [9, 11],
-            [12, 14], [14, 16], [13, 15], [15, 17]
-        ]
-        
-        for i, (x, y, conf) in enumerate(keypoints):
-            if conf > 0.5:
-                cv2.circle(frame, (int(x), int(y)), 4, color, -1)
-        
-        for c in skeleton:
-            pt1_idx, pt2_idx = c[0] - 1, c[1] - 1
-            if pt1_idx < len(keypoints) and pt2_idx < len(keypoints):
-                pt1 = keypoints[pt1_idx]
-                pt2 = keypoints[pt2_idx]
-                if pt1[2] > 0.5 and pt2[2] > 0.5:
-                    cv2.line(frame, (int(pt1[0]), int(pt1[1])), 
-                            (int(pt2[0]), int(pt2[1])), color, 2)
-    
-    def draw_bbox(self, frame, bbox, label, confidence, color):
-        x1, y1, x2, y2 = map(int, bbox)
-        cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-        label_text = f"{label}: {confidence:.2f}"
-        (tw, th), _ = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
-        cv2.rectangle(frame, (x1, y1 - th - 10), (x1 + tw + 10, y1), color, -1)
-        cv2.putText(frame, label_text, (x1 + 5, y1 - 5),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-    
-    def draw_system_info(self, frame):
-        """Draw system information (RAM, CPU, FPS for this process only)"""
-        process = psutil.Process()
-        ram_used_mb = process.memory_info().rss / (1024 ** 2)
-        cpu_used = process.cpu_percent(interval=0)  # % CPU by this process
+    if not token:
+        print("[CRITICAL] Tidak dapat memulai platform: Gagal mendapatkan akses token dari backend.")
+        return
 
-        # FPS
-        self.frame_count += 1
-        elapsed = time.time() - self.start_time
-        if elapsed > 1.0:
-            self.fps = self.frame_count / elapsed
-            self.frame_count = 0
-            self.start_time = time.time()
-        
-        info = [
-            f"FPS: {self.fps:.1f}",
-            f"CPU (proc): {cpu_used:.1f}%",
-            f"RAM (proc): {ram_used_mb:.0f} MB"
-        ]
-        
-        y_offset = frame.shape[0] - 100
-        cv2.rectangle(frame, (10, y_offset), (260, frame.shape[0] - 10), (0, 0, 0), -1)
-        cv2.rectangle(frame, (10, y_offset), (260, frame.shape[0] - 10), (255, 255, 255), 2)
-        for i, t in enumerate(info):
-            cv2.putText(frame, t, (20, y_offset + 25 + i * 25),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+    print("[INFO] Menghubungkan ke LiveKit Server...")
+    room = rtc.Room()
+    await room.connect(LIVEKIT_URL, token)
+    print("[INFO] Terhubung ke WebRTC Room!")
+
+    asyncio.create_task(token_renewal_loop(
+        device_id=DEVICE_ID,
+        camera_id=CAMERA_ID,
+        api_secret=API_SECRET,
+        backend_url=BACKEND_URL
+    ))
+
+    # Buat jalur transmisi video
+    source = rtc.VideoSource(640, 480)
+    track = rtc.LocalVideoTrack.create_video_track(LIVEKIT_TRACK_NAME, source)
+    options = rtc.TrackPublishOptions()
+    options.source = rtc.TrackSource.SOURCE_CAMERA
+    await room.local_participant.publish_track(track, options)
+
+    # --- SETUP KAMERA & BUFFER ---
+    cap = cv2.VideoCapture(INPUT_SOURCE)
+    pose_buffer = deque(maxlen=T)
+    frame_count = 0
     
-    def process_frame(self, frame):
-        if frame is None:
-            return None
-        results = self.pose_model(frame, verbose=False)
-        for result in results:
-            if result.keypoints is not None and len(result.keypoints) > 0:
-                boxes = result.boxes
-                keypoints = result.keypoints
-                for box, kpts in zip(boxes, keypoints):
-                    bbox = box.xyxy[0].cpu().numpy()
-                    kpts_data = kpts.data[0].cpu().numpy()
-                    class_name, confidence = self.classify_pose(kpts_data)
-                    if confidence > self.conf_threshold:
-                        color = self.colors.get(class_name, (0, 255, 0))
-                        self.draw_bbox(frame, bbox, class_name, confidence, color)
-                        self.draw_skeleton(frame, kpts_data, color)
-        self.draw_system_info(frame)
-        return frame
-    
-    def get_camera_stream(self):
-        try:
-            response = requests.get(self.camera_url, stream=True, timeout=5)
-            if response.status_code == 200:
-                bytes_data = bytes()
-                for chunk in response.iter_content(chunk_size=1024):
-                    bytes_data += chunk
-                    a = bytes_data.find(b'\xff\xd8')
-                    b = bytes_data.find(b'\xff\xd9')
-                    if a != -1 and b != -1:
-                        jpg = bytes_data[a:b+2]
-                        bytes_data = bytes_data[b+2:]
-                        img = cv2.imdecode(np.frombuffer(jpg, dtype=np.uint8), cv2.IMREAD_COLOR)
-                        yield img
-        except Exception as e:
-            print(f"Error getting camera stream: {e}")
-            time.sleep(1)
-            yield None
+    current_label = "Menganalisis..."
+    current_conf = 0.0
 
+    print(f"[INFO] Memulai pemrosesan dari sumber: {INPUT_SOURCE}")
 
-# ------------------------------
-# Flask Server
-# ------------------------------
-detector = None
-
-def generate_processed_frames(detector):
-    for frame in detector.get_camera_stream():
-        if frame is None:
-            continue
-        processed_frame = detector.process_frame(frame)
-        if processed_frame is not None:
-            ret, buffer = cv2.imencode('.jpg', processed_frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
-            if not ret:
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            if isinstance(INPUT_SOURCE, str) and not INPUT_SOURCE.startswith("rtsp"):
+                cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
                 continue
-            frame_bytes = buffer.tobytes()
-            yield (b'--frame\r\n'
-                    b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+            else:
+                break
 
-@app.route('/processed_feed')
-def processed_feed():
-    return Response(generate_processed_frames(detector),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
+        frame = cv2.resize(frame, (640, 480))
+        
+        # --- PROSES YOLO POSE ---
+        results = yolo_model.track(frame, persist=True, classes=[0], verbose=False)
+        annotated_frame = results[0].plot() 
+        
+        # Ekstraksi Koordinat untuk GCN
+        frame_pose_data = np.zeros((3, V, M))
+        if results[0].keypoints is not None and results[0].keypoints.data.numel() > 0:
+            kpts = results[0].keypoints.data.cpu().numpy()
+            num_people = min(len(kpts), M)
+            
+            for m in range(num_people):
+                person_kpts = kpts[m]
+                if len(person_kpts) >= 17:
+                    hip_l, hip_r = person_kpts[11], person_kpts[12]
+                    
+                    if hip_l[2] > 0 and hip_r[2] > 0:
+                        pelvis_x = (hip_l[0] + hip_r[0]) / 2
+                        pelvis_y = (hip_l[1] + hip_r[1]) / 2
+                        for v in range(V):
+                            if person_kpts[v][2] > 0:
+                                frame_pose_data[0, v, m] = person_kpts[v][0] - pelvis_x
+                                frame_pose_data[1, v, m] = person_kpts[v][1] - pelvis_y
+                                frame_pose_data[2, v, m] = person_kpts[v][2]
+        
+        pose_buffer.append(frame_pose_data)
 
-@app.route('/health')
-def health():
-    return {'status': 'ok', 'detector': 'active'}
+        # --- PROSES GCN-LSTM ---
+        if len(pose_buffer) == T and frame_count % 5 == 0:
+            tensor_data = np.stack(pose_buffer, axis=1) 
+            tensor_data = np.max(tensor_data, axis=-1)  
+            
+            input_tensor = torch.tensor(tensor_data, dtype=torch.float32).unsqueeze(0).to(device)
+            with torch.no_grad():
+                output = gcn_lstm_model(input_tensor, A)
+                probs = torch.softmax(output, dim=1)[0]
+                class_idx = torch.argmax(probs).item()
+                current_label = CLASSES[class_idx]
+                current_conf = probs[class_idx].item()
 
-def start_detector_server(model_path, camera_url, host=HOST, port=PORT):
-    global detector
-    print("Initializing Violence Detector...")
-    detector = ViolenceDetector(model_path, camera_url)
-    print(f"\nServer running at: http://{host}:{port}/processed_feed")
-    app.run(host=host, port=port, threaded=True, debug=False)
+        # --- RENDERING UI ---
+        color = (0, 0, 255) if current_label in ['assault', 'fighting', 'shooting', 'robbery'] else (0, 255, 0)
+        
+        cv2.rectangle(annotated_frame, (10, 10), (450, 60), (0, 0, 0), -1)
+        cv2.putText(annotated_frame, f"STATUS: {current_label.upper()} ({current_conf:.2f})", 
+                    (20, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
 
-if __name__ == '__main__':
+        # --- TRANSMISI KE REACT (LIVEKIT) ---
+        rgb_frame = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
+        
+        lk_frame = rtc.VideoFrame(
+            width=640, 
+            height=480, 
+            type=rtc.VideoBufferType.RGB24, 
+            data=rgb_frame.tobytes()
+        )
+        source.capture_frame(lk_frame)
+        
+        await asyncio.sleep(0.001) 
+        frame_count += 1
+
+    print("[INFO] Mematikan Kamera dan Koneksi...")
+    cap.release()
+    await room.disconnect()
+
+if __name__ == "__main__":
     try:
-        start_detector_server(MODEL_PATH, CAMERA_URL)
+        asyncio.run(main())
     except KeyboardInterrupt:
-        print("\nShutting down...")
-        cv2.destroyAllWindows()
+        print("[INFO] Edge Device dihentikan oleh pengguna.")

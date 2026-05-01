@@ -2,8 +2,10 @@
 import Elysia from 'elysia';
 
 import { AuthController } from './auth/auth.controller';
+import { LiveKitController } from './livekit/livekit.controller';
 import { UserController } from './user/user.controller';
 
 export const ApiRouter = new Elysia({ name: 'api-router' })
   .use(AuthController)
-  .use(UserController);
+  .use(UserController)
+  .use(LiveKitController);

@@ -44,3 +44,36 @@ jobs:
         
       - name: Build Binary
         run: bun build:binary
+
+  fe-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./web-frontend
+
+    strategy:
+      matrix:
+        node-version: [24]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Install bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "latest"
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install Dependencies
+        run: bun install
+        
+      - name: Lint and Typecheck
+        run: bun lint && bun typecheck
+        
+      - name: Build Test
+        run: bun build:test

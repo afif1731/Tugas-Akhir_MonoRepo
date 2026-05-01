@@ -1,7 +1,7 @@
 import { t } from 'elysia';
-import { Role } from 'generated/prisma/enums';
 
 import { StringSchema } from '@/common';
+import { Role } from '~/generated/prisma/enums';
 
 export const LoginRequestSchema = t.Object({
   email: StringSchema.email,

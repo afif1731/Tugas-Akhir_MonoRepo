@@ -1,10 +1,10 @@
 import { password } from 'bun';
-import { type Prisma, type Users } from 'generated/prisma/client';
 import { StatusCodes } from 'http-status-codes';
 import { validate as isValidUuid } from 'uuid';
 
 import { ErrorResponse, type IPaginatedResult, prisma } from '@/common';
 import { AdditionalValidation, FileManager, paginate } from '@/utils';
+import { type Prisma, type Users } from '~/generated/prisma/client';
 
 import { type IGetMeDetailResponse } from '../auth/auth-me/schema';
 import {

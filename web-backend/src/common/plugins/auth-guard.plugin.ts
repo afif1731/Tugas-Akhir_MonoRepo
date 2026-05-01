@@ -1,8 +1,8 @@
 import Elysia from 'elysia';
-import { type Role } from 'generated/prisma/enums';
 import { StatusCodes } from 'http-status-codes';
 
 import { JwtUtils } from '@/utils';
+import { type Role } from '~/generated/prisma/enums';
 
 import { prisma } from '../config';
 import { ErrorResponse } from '../responses';
@@ -11,9 +11,11 @@ import { ErrorResponse } from '../responses';
 export const AuthPlugin = new Elysia({ name: 'auth-plugin' }).macro({
   authPlugin: ({
     enabled = true,
+    optional = false,
     allowed_roles,
   }: {
     enabled?: boolean;
+    optional?: boolean;
     allowed_roles?: Role | Role[] | undefined;
   } = {}) => ({
     async resolve({ cookie }) {
@@ -21,8 +23,12 @@ export const AuthPlugin = new Elysia({ name: 'auth-plugin' }).macro({
 
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
       const token = cookie['access-cookie'].value as string | undefined;
-      if (!token)
+
+      if (!token) {
+        if (optional) return { user: undefined };
+
         throw new ErrorResponse(StatusCodes.UNAUTHORIZED, 'Token not found');
+      }
 
       const jwtPayload = JwtUtils.verifyToken(token, 'ACCESS');
       if (!jwtPayload)

@@ -79,7 +79,8 @@ model EdgeDevices {
   id            String          @id @default(uuid(7))
   name          String
   slug          String          @unique
-  location      String?
+  type          String
+  location      String
   max_cameras   Int             @default(1)
   status        DeviceStatus    @default(OFFLINE)
   error_message Json?

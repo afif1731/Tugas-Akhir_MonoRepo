@@ -31,6 +31,21 @@ services:
     networks:
       - mocavis-network
 
+  mocavis-rstp:
+    image: livekit/livekit-server:latest
+    container_name: mocavis-livekit-server
+    ports:
+      - "${LIVEKIT_PORT}:7880"
+      - "${LIVEKIT_TCP_PORT}:7881/tcp"
+      - "${LIVEKIT_UDP_PORT}:7882/udp"
+    command: --config /etc/livekit.yaml
+    restart: always
+    environment:
+      - LIVEKIT_KEYS=${LIVEKIT_KEYS}
+      - LIVEKIT_RTC_NODE_IP=${LIVEKIT_NODE_IP}
+    volumes:
+      - ./livekit-conf/livekit.yaml:/etc/livekit.yaml
+
 volumes:
   postgres:
 

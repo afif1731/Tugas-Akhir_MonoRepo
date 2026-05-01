@@ -64,7 +64,14 @@ const app = new Elysia({
         },
         { default: 'development' },
       ),
-      PORT: t.String({ minLength: 1, error: 'PORT is required' }),
+      BACKEND_PORT: t.String({
+        minLength: 1,
+        error: 'BACKEND_PORT is required',
+      }),
+      LIVEKIT_HTTP_URL: t.String({
+        minLength: 1,
+        error: 'LIVEKIT_HTTP_URL is required',
+      }),
       CLIENT_ORIGIN: t.String({ default: '*' }),
       JWT_ACCESS_SECRET: t.String({
         minLength: 1,
@@ -258,7 +265,7 @@ const app = new Elysia({
       console.error('Failed to shutting down server.', error);
     }
   })
-  .listen(process.env.PORT || 4000);
+  .listen(process.env.BACKEND_PORT || 4000);
 
 console.log(
   `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`,

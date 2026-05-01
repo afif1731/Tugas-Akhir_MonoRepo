@@ -54,6 +54,7 @@
     "http-status-codes": "^2.3.0",
     "ioredis": "^5.4.1",
     "jsonwebtoken": "^9.0.2",
+    "livekit-server-sdk": "^2.15.2",
     "nodemailer": "^6.9.16",
     "pg": "^8.20.0",
     "pino": "^10.3.1",

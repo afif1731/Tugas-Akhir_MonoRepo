@@ -1,0 +1,3 @@
+id,name,type,location,status
+019cf0e8-c7c5-7ad1-b796-dcb62eb5ec19,edge device local,local-device,"TW2 - 703",ONLINE
+019cf0e8-c7c5-76d8-82f0-2841f1a5b3d4,edge device coral 1,google-coral,"TW2 - 705",ONLINE

@@ -13,9 +13,10 @@
     "typescript": "^5"
   },
   "scripts": {
-    "prepare": "husky"
+    "prepare": "husky",
+    "livekit:up": "docker compose -f docker-compose-db.yml --env-file .env.development up -d mocavis-rstp"
   },
   "dependencies": {
-    "dotenv": "^17.3.1"
+    "dotenv": "^17.4.2"
   }
 }

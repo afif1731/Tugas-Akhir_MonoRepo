@@ -1,5 +1,10 @@
 import { databasePool as databasePool, prisma } from '../../src/common';
-import { systemSettingsSeed, usersSeed } from './seed';
+import {
+  camerasSeed,
+  edgeDevicesSeed,
+  systemSettingsSeed,
+  usersSeed,
+} from './seed';
 
 async function main() {
   console.log('⚒️ Seeding for backend database...');
@@ -7,6 +12,8 @@ async function main() {
   try {
     await systemSettingsSeed();
     await usersSeed();
+    await edgeDevicesSeed();
+    await camerasSeed();
   } catch (error) {
     console.error('⛔ Seeding error:', error);
     process.exit(1);

@@ -19,3 +19,9 @@ mmpose
 ipykernel
 jupyter
 flask
+scenedetect
+lap
+livekit
+livekit-api
+python-dotenv
+aiohttp

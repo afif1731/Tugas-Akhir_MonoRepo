@@ -11,6 +11,10 @@ export const StringSchema = {
     maxLength: 32,
     error: 'Password must be 8-32 characters',
   }),
+  id: t.String({
+    minLength: 1,
+    maxLength: 64,
+  }),
   text: t.String({ minLength: 1, maxLength: 256 }),
   longtext: t.String({ minLength: 1, maxLength: 512 }),
   paragraph: t.String({ minLength: 1, maxLength: 5120 }),

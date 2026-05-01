@@ -1,82 +1,49 @@
 import cv2
-from flask import Flask, Response
-import threading
+import time
 
-app = Flask(__name__)
+def cctv_simulator(source_path=None, resolution=(640, 480), fps=30):
+    """
+    Simulasi kamera CCTV. 
+    Jika source_path kosong, akan menghasilkan 'test pattern'.
+    """
+    if source_path:
+        cap = cv2.VideoCapture(source_path)
+    else:
+        # Gunakan webcam internal sebagai simulasi jika tidak ada file video
+        cap = cv2.VideoCapture(0)
 
-# Configuration
-HOST = '0.0.0.0'
-PORT = 5000
-
-# Global variable untuk menyimpan frame
-camera = None
-camera_lock = threading.Lock()
-
-class CameraStream:
-    def __init__(self):
-        self.camera = cv2.VideoCapture(0)
-        self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-        self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-        self.camera.set(cv2.CAP_PROP_FPS, 30)
+    print(f"Simulasi CCTV aktif pada {resolution[0]}x{resolution[1]} @ {fps} FPS")
+    
+    while cap.isOpened():
+        start_time = time.time()
+        ret, frame = cap.read()
         
-    def __del__(self):
-        if self.camera.isOpened():
-            self.camera.release()
-    
-    def get_frame(self):
-        with camera_lock:
-            success, frame = self.camera.read()
-            if not success:
-                return None
-            return frame
-
-def generate_frames():
-    """Generator untuk streaming video"""
-    global camera
-    
-    while True:
-        frame = camera.get_frame()
-        if frame is None:
-            break
-            
-        # Encode frame ke JPEG
-        ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
         if not ret:
+            # Loop video jika sudah habis
+            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
             continue
-            
-        frame_bytes = buffer.tobytes()
+
+        # Simulasi resolusi CCTV
+        frame = cv2.resize(frame, resolution)
+
+        # --- Tambahkan efek CCTV (Opsional) ---
+        # 1. Tambahkan Noise (Grainy)
+        # 2. Tambahkan Overlay Teks "CAM 01 - LIVE"
+        cv2.putText(frame, f"CAM 01 - {time.strftime('%H:%M:%S')}", (20, 40), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+
+        # Tampilkan hasil simulasi
+        cv2.imshow('CCTV Simulator Output', frame)
+
+        # Kontrol FPS agar stabil
+        time_elapsed = time.time() - start_time
+        time_to_wait = max(1, int((1/fps - time_elapsed) * 1000))
         
-        # Yield frame dalam format multipart
-        yield (b'--frame\r\n'
-                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+        if cv2.waitKey(time_to_wait) & 0xFF == ord('q'):
+            break
 
-@app.route('/video_feed')
-def video_feed():
-    """Route untuk streaming video"""
-    return Response(generate_frames(),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
+    cap.release()
+    cv2.destroyAllWindows()
 
-@app.route('/health')
-def health():
-    """Health check endpoint"""
-    return {'status': 'ok', 'camera': 'active'}
-
-def start_camera_server(host=HOST, port=PORT):
-    """Memulai server kamera"""
-    global camera
-    camera = CameraStream()
-    
-    print(f"Camera server starting...")
-    print(f"Live camera URL: http://{host}:{port}/video_feed")
-    print(f"Press Ctrl+C to stop")
-    
-    app.run(host=host, port=port, threaded=True, debug=False)
-
-if __name__ == '__main__':
-    try:
-        start_camera_server()
-    except KeyboardInterrupt:
-        print("\nShutting down camera server...")
-        if camera:
-            del camera
-        cv2.destroyAllWindows()
+# cctv_simulator('video_kekerasan.mp4')
+cctv_simulator() # Default ke webcam

@@ -72,7 +72,7 @@ export const UserController = new Elysia({ name: 'user-controller' })
       .patch(
         '/:user_id',
         async ({ params: { user_id }, user, body }) => {
-          const result = await UserService.updateUser(user.id, user_id, body);
+          const result = await UserService.updateUser(user!.id, user_id, body);
 
           return new SuccessResponse(
             StatusCodes.OK,
@@ -90,7 +90,7 @@ export const UserController = new Elysia({ name: 'user-controller' })
       .delete(
         '/:user_id',
         async ({ params: { user_id }, user }) => {
-          await UserService.deleteUser(user.id, user_id);
+          await UserService.deleteUser(user!.id, user_id);
 
           return new SuccessResponse(
             StatusCodes.OK,

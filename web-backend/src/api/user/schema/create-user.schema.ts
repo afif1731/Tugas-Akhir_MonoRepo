@@ -1,7 +1,7 @@
 import { t } from 'elysia';
-import { Role } from 'generated/prisma/enums';
 
 import { FileSchema, StringSchema } from '@/common';
+import { Role } from '~/generated/prisma/enums';
 
 export const CreateUserRequestSchema = t.Object({
   email: StringSchema.email,

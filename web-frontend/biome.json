@@ -1,0 +1,115 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.4.8/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
+  "files": {
+    "ignoreUnknown": false,
+    "includes": [
+      "package.json",
+      "vite.config.ts",
+      "./app/**/*",
+      "!app/components/ui/*",
+      "ecosystem.config.cjs",
+      ".vscode/settings.json"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "formatWithErrors": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "suspicious": {
+        "noArrayIndexKey": "off",
+        "noUnknownAtRules": "off",
+        "useIterableCallbackReturn": "off"
+      },
+      "correctness": {
+        "noEmptyPattern": "off",
+        "useUniqueElementIds": "off",
+        "noNestedComponentDefinitions": "off",
+        "noUnusedVariables": {
+          "level": "info",
+          "options": {
+            "ignoreRestSiblings": true
+          }
+        }
+      },
+      "nursery": {
+        "useSortedClasses": {
+          "level": "warn",
+          "fix": "safe",
+          "options": {
+            "attributes": ["className"],
+            "functions": ["cn", "cva"]
+          }
+        }
+      },
+      "style": {
+        "noParameterAssign": "error",
+        "useAsConstAssertion": "error",
+        "useDefaultParameterLast": "error",
+        "useEnumInitializers": "error",
+        "useSelfClosingElements": "error",
+        "useSingleVarDeclarator": "error",
+        "noUnusedTemplateLiteral": "error",
+        "useNumberNamespace": "error",
+        "noInferrableTypes": "error",
+        "noUselessElse": "error"
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "trailingCommas": "es5",
+      "semicolons": "always"
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": {
+          "level": "on",
+          "options": {
+            "groups": [
+              [":URL:"],
+              ":BLANK_LINE:",
+              [":BUN:", ":NODE:"],
+              ":BLANK_LINE:",
+              [":PACKAGE:", ":PACKAGE_WITH_PROTOCOL:"],
+              ":BLANK_LINE:",
+              ["@/lib/**", "@/hooks/**"],
+              ":BLANK_LINE:",
+              ["@/data/**"],
+              ":BLANK_LINE:",
+              ["@/components/**", "@/components/ui/**"],
+              ":BLANK_LINE:",
+              ["@/store/**"],
+              ":BLANK_LINE:",
+              [":ALIAS:"],
+              ":BLANK_LINE:",
+              [":PATH:"],
+              ":BLANK_LINE:",
+              ["@/models/**"]
+            ]
+          }
+        }
+      }
+    }
+  }
+}

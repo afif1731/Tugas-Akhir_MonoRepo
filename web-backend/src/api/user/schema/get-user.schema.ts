@@ -1,7 +1,7 @@
 import { t } from 'elysia';
-import { Role } from 'generated/prisma/enums';
 
 import { OrderBySchema, PaginationSchema, StringSchema } from '@/common';
+import { Role } from '~/generated/prisma/enums';
 
 export const UserPaginationQuerySchema = t.Object({
   page: PaginationSchema.pageSchema,

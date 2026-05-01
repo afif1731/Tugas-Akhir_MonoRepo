@@ -4,7 +4,6 @@
     "module": "CommonJS",
     "declaration": true,
     "removeComments": true,
-    "moduleResolution": "node",
     "types": ["bun-types"],
     "importsNotUsedAsValues": "remove",
     "esModuleInterop": true,
@@ -12,9 +11,9 @@
     "strict": true,
     "skipLibCheck": true,
     "outDir": "dist",
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"],
+      "~/*": ["./*"]
     }
   },
   "include": ["src/**/*"],
