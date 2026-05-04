@@ -1,6 +1,5 @@
 import { LiveKitRoom } from '@livekit/components-react';
 import { useEffect, useState } from 'react';
-import { v7 as uuidv7 } from 'uuid';
 
 import { useIsMobile } from '@/hooks/use-mobile';
 import { api } from '@/lib/axios';
@@ -11,10 +10,11 @@ import { Text } from '@/components/helper/text';
 import { Button } from '@/components/ui/button';
 
 import { LIVEKIT_TOKEN_INTERVAL } from '@/constants/time-interval';
-import type { ILiveKitToken } from '@/schemas/models';
+import type { ILiveKitToken } from '@/schemas/types';
 
 import type { Route } from './+types';
 import { LiveVideoPlayer } from './components/video-player';
+import { handleCctvContent, handleLiveKit } from './utils';
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -24,37 +24,35 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export async function clientLoader() {
-  let identity = itemStorage.local.get<string>('identity');
+  const { initialToken, identity } = await handleLiveKit();
+  const layoutDetail = await handleCctvContent();
 
-  if (!identity) {
-    identity = `id_${uuidv7()}`;
-    itemStorage.local.set('identity', identity);
+  let defaultDimension = itemStorage.local.get<number[]>('default_dimension');
+
+  if (layoutDetail[0].json) {
+    defaultDimension = layoutDetail[0].json.dimension || null;
   }
-  try {
-    const response = await api.get<ILiveKitToken>('/livekit/access-token/website', {
-      params: { identity },
-    });
 
-    return {
-      initialToken: response.data.token,
-      identity,
-    };
-  } catch (error) {
-    handleApiResponseError(error);
-
-    return {
-      initialToken: null,
-      identity,
-    };
+  if (!defaultDimension) {
+    defaultDimension = [2, 2];
+    itemStorage.local.set('default_dimension', defaultDimension);
   }
+
+  return {
+    initialToken,
+    identity,
+    layoutDetail: layoutDetail[0],
+    defaultDimension,
+  };
 }
 
 export default function HomePage({ loaderData }: Route.ComponentProps) {
-  const { initialToken, identity } = loaderData;
+  const { initialToken, identity, layoutDetail, defaultDimension } = loaderData;
   const isMobile = useIsMobile();
   const serverUrl = import.meta.env.VITE_LIVEKIT_URL;
 
   const [token, setToken] = useState<string | null>(initialToken);
+  const [dimension, _setDimension] = useState<number[]>(defaultDimension);
 
   useEffect(() => {
     if (!identity) return;
@@ -87,9 +85,9 @@ export default function HomePage({ loaderData }: Route.ComponentProps) {
           serverUrl={serverUrl}
           connect={true}
           data-lk-theme="default"
-          className="flex h-full w-full flex-col px-8 py-8"
+          className="flex h-full w-full flex-col px-2 py-2"
         >
-          <LiveVideoPlayer />
+          <LiveVideoPlayer dimension={dimension} content={layoutDetail.json} />
         </LiveKitRoom>
       ) : (
         <div className="flex h-full w-full items-center justify-center gap-4">

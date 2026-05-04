@@ -15,17 +15,17 @@ from livekit import rtc
 # ==========================================
 load_dotenv()
 
-INPUT_SOURCE = 0
+# INPUT_SOURCE = 0
+INPUT_SOURCE = "./edge-code/_video_sample/normal_sample_1.mp4"
 
 LIVEKIT_URL = os.getenv('LIVEKIT_URL', 'ws://127.0.0.1:7880')
 BACKEND_URL = os.getenv('VITE_API_URL', 'http://localhost:4000')
-API_KEY = os.getenv('LIVEKIT_API_KEY', 'dev_key')
+
 API_SECRET = os.getenv('LIVEKIT_API_SECRET', 'supersecretvalue')
 ROOM_NAME = os.getenv('LIVEKIT_ROOM_NAME', 'surveillance_room')
 
 YOLO_PATH = "./edge-code/_model/yolov8n-pose.pt"
 GCN_PATH = "./_model/GCN_LSTM_best.pth"
-CAMERA_NAME = "CCTV TW2-701"
 
 DEVICE_ID = "019cf0e8-c7c5-7ad1-b796-dcb62eb5ec19"
 CAMERA_ID = "019cf0ea-cfe6-7d61-bd35-ee71fbbf8c2d"

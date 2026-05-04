@@ -11,6 +11,7 @@ def get_adjacency_matrix():
     (11, 12), (5, 11), (6, 12),
     (11, 13), (13, 15), (12, 14), (14, 16)
   ]
+  
   A = np.zeros((17, 17))
   for i, j in edges:
     A[i, j] = 1
@@ -56,20 +57,20 @@ class GCN_LSTM(nn.Module):
   def forward(self, x, A):
     # input x: (Batch, Channels, Time_frames, Vertices_joints) -> (N, 3, 100, 17)
 
-    # 1. Spatial GCN Processing
+    # Spatial GCN Processing
     x = self.relu(self.gcn1(x, A))
     x = self.relu(self.gcn2(x, A)) # Shape: (N, hidden_gcn, 100, 17)
 
-    # 2. Spatial Pooling
+    # Spatial Pooling
     x = x.mean(dim=-1) # Shape: (N, hidden_gcn, 100)
 
-    # 3. LSTM Preparation (Transpose)
+    # LSTM Preparation (Transpose)
     x = x.permute(0, 2, 1) # Shape: (Batch, Time_frames, Features) -> (N, 100, hidden_gcn)
 
-    # 4. Temporal LSTM Processing
+    # Temporal LSTM Processing
     lstm_out, (hn, cn) = self.lstm(x) # lstm_out shape: (N, 100, hidden_lstm)
 
-    # 5. Final Classification (Picked from the last frame)
+    # Final Classification (Picked from the last frame)
     last_frame_out = lstm_out[:, -1, :] # Shape: (N, hidden_lstm)
 
     out = self.dropout(last_frame_out)

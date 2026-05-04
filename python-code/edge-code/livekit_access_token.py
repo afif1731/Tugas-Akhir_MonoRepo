@@ -8,7 +8,6 @@ async def fetch_access_token(device_id: str, camera_id: str, api_secret: str, ba
     """Mengambil token dari backend menggunakan HMAC-SHA256 Auth"""
     timestamp = str(int(time.time()))
     
-    # Payload yang akan di-hash: gabungan ID dan waktu
     payload = f"{device_id}:{camera_id}:{timestamp}"
 
     signature = hmac.new(

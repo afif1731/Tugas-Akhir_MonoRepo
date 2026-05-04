@@ -18,11 +18,10 @@ export const shouldRevalidate = revalidatePathChanges;
 
 export async function clientLoader() {
   try {
-    const storedUser = itemStorage.local.get<IUser>('user-data');
-
-    if (storedUser) return { user: storedUser };
-
     const response = await api.get<IUser>('/auth/me');
+
+    itemStorage.local.set('user-data', response.data);
+
     return { user: response.data };
   } catch (_) {
     return { user: undefined };
