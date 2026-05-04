@@ -1,6 +1,7 @@
+import { StatusCodes } from 'http-status-codes';
 import { validate as isValidUuid } from 'uuid';
 
-import { type IPaginatedResult, prisma } from '@/common';
+import { ErrorResponse, type IPaginatedResult, prisma } from '@/common';
 import { paginate } from '@/utils';
 import { type EdgeDevices } from '~/generated/prisma/client';
 import {
@@ -83,5 +84,28 @@ export abstract class EdgeDeviceService {
     );
 
     return devices;
+  }
+
+  static async getDeviceDetail(device_id: string) {
+    const device = await prisma.edgeDevices.findFirst({
+      where: {
+        id: device_id,
+      },
+      include: {
+        cameras: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            status: true,
+          },
+        },
+      },
+    });
+
+    if (!device)
+      throw new ErrorResponse(StatusCodes.NOT_FOUND, 'Device not found');
+
+    return device;
   }
 }

@@ -2,6 +2,7 @@ import { databasePool as databasePool, prisma } from '../../src/common';
 import {
   camerasSeed,
   edgeDevicesSeed,
+  layoutSeed,
   systemSettingsSeed,
   usersSeed,
 } from './seed';
@@ -14,6 +15,7 @@ async function main() {
     await usersSeed();
     await edgeDevicesSeed();
     await camerasSeed();
+    await layoutSeed();
   } catch (error) {
     console.error('⛔ Seeding error:', error);
     process.exit(1);

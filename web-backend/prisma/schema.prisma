@@ -119,7 +119,7 @@ model CctvLayoutDetails {
   created_at      DateTime            @default(now())
   updated_at      DateTime            @default(now()) @updatedAt
 
-  cameras       Cameras[]
+  cameras       Cameras[]   // I don't think this would be needed
 }
 
 model CctvLayoutPages {
