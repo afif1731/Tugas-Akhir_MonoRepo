@@ -1,11 +1,12 @@
 import {
   type TrackReference,
   type TrackReferenceOrPlaceholder,
+  useRoomContext,
   useTracks,
   VideoTrack,
 } from '@livekit/components-react';
-import { Track } from 'livekit-client';
-import { useMemo } from 'react';
+import { type DataPacket_Kind, type RemoteParticipant, RoomEvent, Track } from 'livekit-client';
+import { useEffect, useMemo, useState } from 'react';
 
 import { cn } from '@/lib/utils';
 
@@ -16,6 +17,12 @@ import type { ILayoutDetail } from '@/schemas/types';
 type ITrackList = {
   id: string | null;
   trackRef?: TrackReference | undefined;
+};
+
+type CameraEventData = {
+  label: string;
+  confidence: number;
+  camera_id: string;
 };
 
 function mapPageTracks(
@@ -89,7 +96,7 @@ function VideoPlayer({ id, trackRef }: ITrackList) {
     <>
       <Text
         type="c"
-        className="absolute top-0 left-0 z-20 rounded-br-2xl bg-black/50 px-5 py-3 text-white opacity-0 transition-all duration-150 group-hover:opacity-100"
+        className="absolute top-0 left-0 z-20 rounded-br-2xl bg-black/50 px-3 py-3 text-white opacity-0 transition-all duration-150 group-hover:opacity-100"
       >
         {trackRef?.participant.name}
       </Text>
@@ -112,6 +119,34 @@ export function LiveVideoPlayer({
     onlySubscribed: true,
   });
 
+  const room = useRoomContext();
+  const [cameraEvents, setCameraEvents] = useState<Record<string, CameraEventData>>({});
+
+  useEffect(() => {
+    const handleDataReceived = (
+      payload: Uint8Array,
+      _participant?: RemoteParticipant,
+      _kind?: DataPacket_Kind,
+      _topic?: string
+    ) => {
+      try {
+        const str = new TextDecoder().decode(payload);
+        const data = JSON.parse(str) as CameraEventData;
+        if (data.camera_id) {
+          setCameraEvents((prev) => ({ ...prev, [data.camera_id]: data }));
+        }
+      } catch (error) {
+        console.error('Failed to parse data message', error);
+      }
+    };
+
+    room.on(RoomEvent.DataReceived, handleDataReceived);
+
+    return () => {
+      room.off(RoomEvent.DataReceived, handleDataReceived);
+    };
+  }, [room]);
+
   const trackList = useMemo(() => {
     if (content) {
       return mapPageTracks(dimension, content, tracks);
@@ -129,22 +164,39 @@ export function LiveVideoPlayer({
             gridTemplateRows: `repeat(${dimension[0]}, minmax(0, 1fr))`,
           }}
         >
-          {trackList.map((track, id) => (
-            <div
-              key={track.trackRef?.participant.identity || `track_${id}`}
-              className={cn(
-                'group relative col-span-1 row-span-1 flex h-full w-full items-center justify-center bg-black shadow-lg'
-              )}
-            >
-              <VideoPlayer id={track.id} trackRef={track.trackRef} />
+          {trackList.map((track, id) => {
+            const eventData = track.id ? cameraEvents[track.id] : undefined;
+            const isAbnormal =
+              eventData && eventData.label !== 'normal_event' && eventData.label !== 'Analyzing';
+
+            return (
               <div
+                key={`${track.trackRef?.participant.identity}_${id}` || `track_${id}`}
                 className={cn(
-                  'absolute inset-0 z-30 ring-0 ring-inset transition-all duration-150 hover:ring-4',
-                  'ring-teal-800'
+                  'group relative col-span-1 row-span-1 flex h-full w-full items-center justify-center bg-black shadow-lg'
                 )}
-              />
-            </div>
-          ))}
+              >
+                <VideoPlayer id={track.id} trackRef={track.trackRef} />
+                <div
+                  className={cn(
+                    'absolute inset-0 z-30 ring-inset transition-all duration-150',
+                    isAbnormal ? 'ring-4 ring-red-500' : 'ring-0 ring-teal-800 hover:ring-4'
+                  )}
+                />
+                {eventData && (
+                  <Text
+                    type="btn"
+                    className={cn(
+                      'absolute bottom-0 left-0 z-20 rounded-tr-2xl bg-black/50 px-3 py-3 transition-all duration-150',
+                      isAbnormal ? 'font-bold text-red-500' : 'text-white'
+                    )}
+                  >
+                    {eventData.label} ({(eventData.confidence * 100).toFixed(1)}%)
+                  </Text>
+                )}
+              </div>
+            );
+          })}
         </div>
       ) : (
         <div className="flex h-full w-full items-center justify-center">
