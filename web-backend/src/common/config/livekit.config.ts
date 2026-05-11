@@ -5,6 +5,7 @@ export const LiveKitConfig = {
   ROOM_NAME: process.env.LIVEKIT_ROOM_NAME || 'surveillance_room',
   API_KEY: process.env.LIVEKIT_API_KEY || 'dev_key',
   API_SECRET: process.env.LIVEKIT_API_SECRET || 'super_secret_value',
+  DEVICE_SECRET: process.env.LIVEKIT_DEVICE_SECRET || 'supersecret',
 };
 
 export const LiveKitRoomClient = new RoomServiceClient(

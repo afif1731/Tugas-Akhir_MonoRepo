@@ -46,3 +46,10 @@ export function revalidatePathChanges({
   }
   return currentUrl.pathname !== nextUrl.pathname && defaultShouldRevalidate;
 }
+
+export function generateMeta(title: string, description?: string) {
+  return [
+    { title: `${title} | COM-Vision` },
+    { name: 'description', content: description ?? 'COM-Vision' },
+  ];
+}

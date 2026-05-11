@@ -1,3 +1,4 @@
+import Cookies from 'js-cookie';
 import { redirect } from 'react-router';
 import { parseFormData } from 'remix-hook-form';
 
@@ -9,6 +10,7 @@ import { Text } from '@/components/helper/text';
 import { WebNameLogo } from '@/components/logo/web-name';
 import { toast } from '@/components/ui/toast';
 
+import { COOKIE_LOGIN_FLAG } from '@/constants/time-interval';
 import type { IUser } from '@/schemas/models/user';
 
 import type { Route } from './+types';
@@ -20,9 +22,10 @@ export async function clientAction({ request }: Route.ClientActionArgs) {
     await api.post('/auth/login', data);
     const response = await api.get<IUser>('/auth/me');
 
-    itemStorage.local.set('user-data', response.data);
-    toast.success('Login Successfully');
+    itemStorage.session.set('user-data', response.data);
+    Cookies.set('login-flag', 'true', { expires: COOKIE_LOGIN_FLAG });
 
+    toast.success('Login Successfully');
     return redirect('/');
   } catch (error) {
     handleApiResponseError(error);

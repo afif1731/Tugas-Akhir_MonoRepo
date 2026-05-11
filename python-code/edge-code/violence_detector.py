@@ -1,108 +1,59 @@
-import os
 import cv2
-import json
-import torch
+import time
 import asyncio
-from dotenv import load_dotenv
 from collections import deque
-from ultralytics import YOLO
 from livekit import rtc
 
 from lib.detector import yolo_pose_extraction, gcn_classification
-from lib.gcn_model import GCN_LSTM, device
-from lib.livekit_access_token import fetch_access_token, token_renewal_loop
+from lib.livekit_message_publish import publish_violence_detection
 
-# ==========================================
-# KONFIGURASI
-# ==========================================
-load_dotenv()
-
-# INPUT_SOURCE = 0
-INPUT_SOURCE = "./edge-code/_video_sample/fighting_sample_1.mp4"
-
-LIVEKIT_URL = os.getenv('LIVEKIT_URL', 'ws://127.0.0.1:7880')
-BACKEND_URL = os.getenv('VITE_API_URL', 'http://localhost:4000')
-
-API_SECRET = os.getenv('LIVEKIT_API_SECRET', 'supersecretvalue')
-ROOM_NAME = os.getenv('LIVEKIT_ROOM_NAME', 'surveillance_room')
-
-YOLO_PATH = "./edge-code/_model/yolov8n-pose.pt"
-GCN_PATH = "./_model/GCN_LSTM_best.pth"
-
-DEVICE_ID = "019cf0e8-c7c5-7ad1-b796-dcb62eb5ec19"
-CAMERA_ID = "019cf0ea-cfe6-7d61-bd35-ee71fbbf8c2d"
-LIVEKIT_TRACK_NAME = f"track_{CAMERA_ID}"
-
-CLASSES = ['assault', 'fighting', 'shooting', 'robbery', 'normal_event']
-T, V, M = 100, 17, 3  # Time frames, Vertices (joints), Max People
-
-HIDDEN_GCN = 64
-HIDDEN_LSTM = 256
-LSTM_LAYERS = 1
-
-print("[INFO] Memuat Model AI...")
-
-yolo_model = YOLO(YOLO_PATH)
-
-gcn_lstm_model = GCN_LSTM(
-    hidden_gcn=HIDDEN_GCN,
-    hidden_lstm=HIDDEN_LSTM,
-    lstm_layers=LSTM_LAYERS
-).to(device)
-
-gcn_lstm_model.load_state_dict(torch.load(GCN_PATH, map_location=device))
-gcn_lstm_model.eval()
-
-async def main():
-    # --- SETUP LIVEKIT ---
-    print("[INFO] Meminta token awal dari backend...")
-    token = await fetch_access_token(
-        device_id=DEVICE_ID,
-        camera_id=CAMERA_ID,
-        api_secret=API_SECRET,
-        backend_url=BACKEND_URL
-    )
+async def run_camera_process(camera, room, yolo_model, gcn_lstm_model, config):
+    """
+    Menjalankan proses inferensi dan pengiriman data ke LiveKit untuk satu kamera spesifik.
+    """
+    camera_id = camera['id']
+    input_source = camera['source']
+    source_type = camera['source_type']
     
-    if not token:
-        print("[CRITICAL] Tidak dapat memulai platform: Gagal mendapatkan akses token dari backend.")
-        return
+    classes = config['CLASSES']
+    t_frames = config['T']
+    v_joints = config['V']
+    m_people = config['M']
 
-    print("[INFO] Menghubungkan ke LiveKit Server...")
-
-    room = rtc.Room()
-    await room.connect(LIVEKIT_URL, token)
+    livekit_track_name = f"track_{camera_id}"
     
-    print("[INFO] Terhubung ke WebRTC Room!")
-
-    asyncio.create_task(token_renewal_loop(
-        device_id=DEVICE_ID,
-        camera_id=CAMERA_ID,
-        api_secret=API_SECRET,
-        backend_url=BACKEND_URL
-    ))
-
-    # Buat jalur transmisi video
+    print(f"[INFO] Mulai menyiapkan transmisi video untuk kamera {camera_id}")
     source = rtc.VideoSource(640, 480)
-    track = rtc.LocalVideoTrack.create_video_track(LIVEKIT_TRACK_NAME, source)
+    track = rtc.LocalVideoTrack.create_video_track(livekit_track_name, source)
     options = rtc.TrackPublishOptions()
     options.source = rtc.TrackSource.SOURCE_CAMERA
 
     await room.local_participant.publish_track(track, options)
 
     # --- SETUP KAMERA & BUFFER ---
-    cap = cv2.VideoCapture(INPUT_SOURCE)
-    pose_buffer = deque(maxlen=T)
+    cap = None
+
+    match source_type:
+        case 'LOCAL':
+            cap = cv2.VideoCapture(int(input_source))
+        case 'STATIC_FILE':
+            cap = cv2.VideoCapture(f"./edge-code/_video_sample/{input_source}")
+        case _:
+            cap = cv2.VideoCapture(input_source)
+
+    pose_buffer = deque(maxlen=t_frames)
     frame_count = 0
     
     current_label = "Analyzing"
     current_conf = 0.0
 
-    print(f"[INFO] Memulai pemrosesan dari sumber: {INPUT_SOURCE}")
+    print(f"[INFO] Memulai pemrosesan dari sumber: {input_source} (Camera ID: {camera_id})")
 
+    prev_time = time.time()
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
-            if isinstance(INPUT_SOURCE, str) and not INPUT_SOURCE.startswith("rtsp"):
+            if isinstance(input_source, str) and not str(input_source).startswith("rtsp"):
                 cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
                 continue
             else:
@@ -111,28 +62,28 @@ async def main():
         frame = cv2.resize(frame, (640, 480))
         
         # --- PROSES YOLO POSE ---
-        frame_pose_data, annotated_frame = yolo_pose_extraction(yolo_model, frame, V, M)
+        frame_pose_data, annotated_frame = yolo_pose_extraction(yolo_model, frame, v_joints, m_people)
         pose_buffer.append(frame_pose_data)
 
         # --- PROSES GCN-LSTM ---
-        new_label, new_conf = gcn_classification(CLASSES, gcn_lstm_model, pose_buffer, frame_count, T)
+        new_label, new_conf = gcn_classification(classes, gcn_lstm_model, pose_buffer, frame_count, t_frames)
 
         if(new_label is not None and new_conf is not None):
             current_label = new_label
             current_conf = new_conf
         
+        current_time = time.time()
+        fps = 1.0 / (current_time - prev_time) if (current_time - prev_time) > 0 else 0.0
+        prev_time = current_time
+        
         detection_data = {
             "label": current_label,
             "confidence": round(current_conf, 2),
-            "camera_id": CAMERA_ID
+            "camera_id": camera_id,
+            "fps": round(fps, 1)
         }
 
-        payload_bytes = json.dumps(detection_data).encode('utf-8')
-
-        await room.local_participant.publish_data(
-            payload_bytes,
-            reliable=False
-        )
+        await publish_violence_detection(detection_data, room)
 
         # --- TRANSMISI KE REACT (LIVEKIT) ---
         rgb_frame = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
@@ -148,12 +99,5 @@ async def main():
         await asyncio.sleep(0.001) 
         frame_count += 1
 
-    print("[INFO] Mematikan Kamera dan Koneksi...")
+    print(f"[INFO] Mematikan Kamera {camera_id}...")
     cap.release()
-    await room.disconnect()
-
-if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        print("[INFO] Edge Device dihentikan oleh pengguna.")

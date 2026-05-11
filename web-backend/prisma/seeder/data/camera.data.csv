@@ -1,3 +1,4 @@
-id,name,status,edge_device_id
-019cf0ea-cfe6-7d61-bd35-ee71fbbf8c2d,"Webcam Test",ONLINE,019cf0e8-c7c5-7ad1-b796-dcb62eb5ec19
-019cf0ea-cfe6-7e24-a667-074efb8e490a,"CCTV Test 1",ONLINE,019cf0e8-c7c5-76d8-82f0-2841f1a5b3d4
+id,edge_device_id,name,status,treshold,source_type,source
+019cf0ea-cfe6-7d61-bd35-ee71fbbf8c2d,019cf0e8-c7c5-7ad1-b796-dcb62eb5ec19,"Webcam Test",ONLINE,0,LOCAL,"0"
+019e0d16-6faf-798b-94e2-48a3090347af,019cf0e8-c7c5-7ad1-b796-dcb62eb5ec19,"Kolam TW2",ONLINE,0,STATIC_FILE,"fighting_sample_1.mp4"
+019cf0ea-cfe6-7e24-a667-074efb8e490a,019cf0e8-c7c5-76d8-82f0-2841f1a5b3d4,"CCTV Test 1",ONLINE,0,STATIC_FILE,"fighting_sample_1.mp4"

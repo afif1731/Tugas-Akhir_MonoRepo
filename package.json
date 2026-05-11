@@ -14,7 +14,10 @@
   },
   "scripts": {
     "prepare": "husky",
-    "livekit:up": "docker compose -f docker-compose-db.yml --env-file .env.development up -d mocavis-rstp"
+    "livekit:up:dev": "docker compose -f docker-compose-db.yml --env-file .env.development up -d mocavis-rstp",
+    "livekit:up:prod": "docker compose -f docker-compose-db.yml --env-file .env up -d mocavis-rstp",
+    "docker:up:dev": "docker compose -f docker-compose-db.yml --env-file .env.development up -d",
+    "docker:up:prod": "docker compose -f docker-compose-db.yml --env-file .env up -d"
   },
   "dependencies": {
     "dotenv": "^17.4.2"

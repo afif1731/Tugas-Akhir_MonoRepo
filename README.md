@@ -1,4 +1,4 @@
-# Website-based Smart Surveillance Platform with Computer Vision Integration in Edge Devices to Enhance Violence Monitoring in Campus Environment
+# Website-based Smart Surveillance Platform with Computer Vision Integration in Edge Devices to Enhance Physical Violence Monitoring in Campus Environment
 
 ## About
 

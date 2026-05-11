@@ -5,7 +5,9 @@ import axios, {
   type AxiosRequestConfig,
   type AxiosResponse,
 } from 'axios';
+import Cookies from 'js-cookie';
 
+import { COOKIE_LOGIN_FLAG } from '@/constants/time-interval';
 import type { ErrorApiResponse, PaginatedApiResponse, SuccessApiResponse } from '@/schemas/types';
 
 import { itemStorage } from './storage';
@@ -85,10 +87,15 @@ api.interceptors.response.use(
           {},
           { headers: cookieHeader ? { Cookie: cookieHeader } : {} }
         );
+
+        Cookies.set('login-flag', 'true', { expires: COOKIE_LOGIN_FLAG });
+
         return originalRequest ? api(originalRequest) : Promise.reject(error);
       } catch (error) {
         await api.post('/auth/logout');
-        itemStorage.local.remove('user-data');
+
+        Cookies.remove('login-flag');
+        itemStorage.session.remove('user-data');
         return Promise.reject(error);
       }
     }

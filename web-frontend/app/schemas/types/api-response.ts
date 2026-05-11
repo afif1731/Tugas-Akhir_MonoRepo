@@ -1,13 +1,13 @@
-export type ILiveKitToken = {
+export interface ILiveKitToken {
   token: string;
-};
+}
 
-export type ILayoutDetail = {
+export interface ILayoutDetail {
   dimension?: number[];
   camera_ids: string[];
-};
+}
 
-export type ILayoutPages = {
+export interface ILayoutPages {
   page: number;
   json: ILayoutDetail;
-};
+}

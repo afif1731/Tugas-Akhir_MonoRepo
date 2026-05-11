@@ -8,7 +8,7 @@ from lib.gcn_model import GCN_LSTM, device, A
 
 def yolo_pose_extraction(yolo_model: YOLO, frame: MatLike, V: int, M: int):
   results = yolo_model.track(frame, persist=True, classes=[0], verbose=False)
-  annotated_frame = results[0].plot()
+  annotated_frame = results[0].plot(boxes=False)
 
   frame_pose_data = np.zeros((3, V, M))
   keypoints_obj = results[0].keypoints
@@ -42,10 +42,9 @@ def yolo_pose_extraction(yolo_model: YOLO, frame: MatLike, V: int, M: int):
 
 def gcn_classification(CLASSES: list[str], gcn_model: GCN_LSTM, pose_buffer: deque, frame_count: int, T: int):
   if len(pose_buffer) == T and frame_count % 5 == 0:
-    tensor_data = np.stack(pose_buffer, axis=1) 
-    tensor_data = np.max(tensor_data, axis=-1)  
-    
+    tensor_data = np.stack(pose_buffer, axis=1)
     input_tensor = torch.tensor(tensor_data, dtype=torch.float32).unsqueeze(0).to(device)
+
     with torch.no_grad():
       output = gcn_model(input_tensor, A)
       probs = torch.softmax(output, dim=1)[0]
@@ -53,5 +52,5 @@ def gcn_classification(CLASSES: list[str], gcn_model: GCN_LSTM, pose_buffer: deq
       current_label = CLASSES[int(class_idx)]
       current_conf = probs[int(class_idx)].item()
       return current_label, current_conf
-    
+  
   return None, None

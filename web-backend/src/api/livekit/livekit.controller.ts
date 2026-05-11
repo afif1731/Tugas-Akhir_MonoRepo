@@ -43,7 +43,6 @@ export const LiveKitController = new Elysia({
         const result = await LiveKitService.generateAccessToken({
           source,
           device_id: query.device_id,
-          camera_id: query.camera_id,
           timestamp: query.timestamp,
           signature: query.signature,
         });

@@ -8,7 +8,6 @@ export const GenerateTokenQuerySchema = t.Object({
 
 export const EdgeDeviceQuerySchema = t.Object({
   device_id: StringSchema.uuid,
-  camera_id: StringSchema.uuid,
   timestamp: t.Date(),
   signature: StringSchema.id,
 });

@@ -21,7 +21,7 @@ export abstract class EdgeDeviceService {
     const args: {
       where: EdgeDevicesWhereInput;
       select: EdgeDevicesSelect;
-      order: EdgeDevicesOrderByWithRelationInput[];
+      orderBy: EdgeDevicesOrderByWithRelationInput[];
     } = {
       where: {
         AND: [
@@ -62,13 +62,15 @@ export abstract class EdgeDeviceService {
         status: true,
         location: true,
         max_cameras: true,
-        cameras: {
+        _count: {
           select: {
-            _count: true,
+            cameras: {
+              where: { status: 'ONLINE' },
+            },
           },
         },
       },
-      order: [
+      orderBy: [
         { name: query.orderByName },
         { location: query.orderByLocation },
         { id: query.orderById },

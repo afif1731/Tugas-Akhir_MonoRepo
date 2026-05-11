@@ -21,9 +21,10 @@ enum DeviceStatus {
 }
 
 enum AnomalyType {
-  ABUSE
   ASSAULT
   FIGHTING
+  ROBBERY
+  SHOOTING
 }
 
 enum PreferenceType {
@@ -35,6 +36,12 @@ enum ReportType {
   EMAIL
   WHATSAPP
   TELEGRAM
+}
+
+enum CameraSourceType {
+  LOCAL
+  STATIC_FILE
+  RTSP_LINK
 }
 
 model Users {
@@ -95,6 +102,8 @@ model Cameras {
   id                  String                @id @default(uuid(7))
   name                String
   slug                String                @unique
+  source              String
+  source_type         CameraSourceType
   status              DeviceStatus          @default(OFFLINE)
   cv_treshold         Float                 @default(0.8)
   error_message       Json?

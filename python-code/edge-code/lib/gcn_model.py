@@ -26,53 +26,110 @@ def get_adjacency_matrix():
 A = get_adjacency_matrix()
 
 class GraphConv(nn.Module):
-  def __init__(self, in_channels, out_channels):
+  def __init__(self, in_channels, out_channels, num_vertices=17, adaptive=True):
     super().__init__()
+    self.adaptive = adaptive
+
     self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=1)
-  def forward(self, x, A):
-    x = self.conv(x)
-    return torch.einsum('nctv,vw->nctw', x, A)
-  
-class GCN_LSTM(nn.Module):
-  def __init__(self, num_classes=5, in_channels=3, hidden_gcn=64, hidden_lstm=128, lstm_layers=2, dropout=0.5):
-    super().__init__()
-    # Spatial Extraction
-    self.gcn1 = GraphConv(in_channels, hidden_gcn)
-    self.gcn2 = GraphConv(hidden_gcn, hidden_gcn)
+    self.bn = nn.BatchNorm2d(out_channels)
     self.relu = nn.ReLU()
 
-    # LSTM Block
-    # input: (Batch, Sequence, Feature)
+    if self.adaptive:
+      self.PA = nn.Parameter(torch.randn(num_vertices, num_vertices) * 1e-4)
+
+    if in_channels != out_channels:
+      self.down_sample = nn.Sequential(
+        nn.Conv2d(in_channels, out_channels, kernel_size=1),
+        nn.BatchNorm2d(out_channels)
+      )
+    else:
+      self.down_sample = lambda x: x
+
+  def forward(self, x, A):
+    residual = self.down_sample(x)
+
+    x = self.conv(x)
+
+    if self.adaptive:
+      A_dynamic = A + self.PA
+      x = torch.einsum('nctv,vw->nctw', x, A_dynamic)
+    else:
+      x = torch.einsum('nctv,vw->nctw', x, A)
+
+    x = self.bn(x)
+
+    return self.relu(x + residual)
+
+class TemporalAttention(nn.Module):
+  def __init__(self, hidden_dim):
+    super().__init__()
+
+    self.attention = nn.Sequential(
+      nn.Linear(hidden_dim, hidden_dim // 2),
+      nn.Tanh(),
+      nn.Linear(hidden_dim // 2, 1)
+    )
+
+  def forward(self, lstm_out):
+    attn_scores = self.attention(lstm_out)
+    attn_weights = torch.softmax(attn_scores, dim=1)
+
+    context_vector = torch.sum(attn_weights * lstm_out, dim=1)
+    return context_vector, attn_weights
+
+class GCN_LSTM(nn.Module):
+  def __init__(self, num_classes=5, in_channels=3, hidden_gcn=64, hidden_lstm=256, lstm_layers=2, dropout=0.5):
+    super().__init__()
+    self.V = 17
+
+    self.gcn_blocks = nn.ModuleList([
+      GraphConv(in_channels, hidden_gcn, self.V),
+      GraphConv(hidden_gcn, hidden_gcn * 2, self.V),
+      GraphConv(hidden_gcn * 2, hidden_gcn * 4, self.V)
+    ])
+
+    self.tcn = nn.Sequential(
+      nn.Conv1d(hidden_gcn * 4, hidden_gcn * 4, kernel_size=3, padding=1),
+      nn.BatchNorm1d(hidden_gcn * 4),
+      nn.ReLU()
+    )
+
     self.lstm = nn.LSTM(
-      input_size=hidden_gcn,
+      input_size=hidden_gcn * 4,
       hidden_size=hidden_lstm,
       num_layers=lstm_layers,
       batch_first=True,
-      dropout=dropout if lstm_layers > 1 else 0.0
+      dropout=dropout if lstm_layers > 1 else 0.0,
+      bidirectional=True
     )
 
-    self.dropout = nn.Dropout(dropout)
-    self.fc = nn.Linear(hidden_lstm, num_classes)
+    self.attn = TemporalAttention(hidden_lstm * 2)
+
+    self.fc = nn.Sequential(
+      nn.Linear(hidden_lstm * 2, hidden_lstm),
+      nn.ReLU(),
+      nn.Dropout(dropout),
+      nn.Linear(hidden_lstm, num_classes)
+    )
 
   def forward(self, x, A):
-    # input x: (Batch, Channels, Time_frames, Vertices_joints) -> (N, 3, 100, 17)
+    N, C, T, V, M = x.size()
 
-    # Spatial GCN Processing
-    x = self.relu(self.gcn1(x, A))
-    x = self.relu(self.gcn2(x, A)) # Shape: (N, hidden_gcn, 100, 17)
+    x = x.permute(0, 4, 1, 2, 3).contiguous()
+    x = x.view(N * M, C, T, V)
 
-    # Spatial Pooling
-    x = x.mean(dim=-1) # Shape: (N, hidden_gcn, 100)
+    for gcn in self.gcn_blocks:
+      x = gcn(x, A)
+    
+    x = x.mean(dim=-1)
+    x = self.tcn(x)
 
-    # LSTM Preparation (Transpose)
-    x = x.permute(0, 2, 1) # Shape: (Batch, Time_frames, Features) -> (N, 100, hidden_gcn)
+    x = x.permute(0, 2, 1).contiguous()
+    lstm_out, _ = self.lstm(x)
 
-    # Temporal LSTM Processing
-    lstm_out, (hn, cn) = self.lstm(x) # lstm_out shape: (N, 100, hidden_lstm)
+    x, _ = self.attn(lstm_out)
+    x = x.view(N, M, -1)
+    x = torch.max(x, dim=1)[0]
 
-    # Final Classification (Picked from the last frame)
-    last_frame_out = lstm_out[:, -1, :] # Shape: (N, hidden_lstm)
-
-    out = self.dropout(last_frame_out)
-    out = self.fc(out)
+    out = self.fc(x)
     return out

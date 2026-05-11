@@ -15,7 +15,7 @@ import LogoutDialog from '../shared/logout-dialog';
 import { useIdle } from '@/hooks/use-idle';
 
 export function SidebarComponent({ user, isCollapsed, setIsCollapsed, isMobile }: SidebarCollapse) {
-  const isIdle = useIdle(5000);
+  const isIdle = useIdle(3000);
 
   const sidebarRef = useRef<HTMLElement>(null);
   
@@ -268,7 +268,7 @@ function isPathActive(current_path: string, item_path: string): boolean {
   const itemSegments = item_path.split('/').filter(Boolean);
 
   const isPrefix = itemSegments.every((seg, idx) => seg === currentSegments[idx]);
-  if(!isPrefix) return false;
+  if(!isPrefix || item_path === '/') return false;
 
   return true;
 }

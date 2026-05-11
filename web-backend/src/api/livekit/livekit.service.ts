@@ -18,7 +18,6 @@ export abstract class LiveKitService {
     user_id,
     user_name,
     device_id,
-    camera_id,
     timestamp,
     signature,
   }: {
@@ -27,7 +26,6 @@ export abstract class LiveKitService {
     user_id?: string;
     user_name?: string;
     device_id?: string;
-    camera_id?: string;
     timestamp?: Date;
     signature?: string;
   }) {
@@ -38,11 +36,8 @@ export abstract class LiveKitService {
     let accessName = identity ? `user ${identity.split('id_')[0]}` : undefined;
 
     if (source === LiveKitSource.EDGE_DEVICE) {
-      if (!device_id || !camera_id)
-        throw new ErrorResponse(
-          StatusCodes.BAD_REQUEST,
-          'Device and camera id required',
-        );
+      if (!device_id)
+        throw new ErrorResponse(StatusCodes.BAD_REQUEST, 'Device id required');
       else if (!signature)
         throw new ErrorResponse(StatusCodes.BAD_REQUEST, 'Signature required');
       else if (!timestamp)
@@ -53,18 +48,19 @@ export abstract class LiveKitService {
       if (Math.abs(currentTime.getTime() / 1000) - timestamp.getTime() > 180)
         throw new ErrorResponse(StatusCodes.UNAUTHORIZED, 'Request is too old');
 
-      const camera = await prisma.cameras.findFirst({
-        where: { AND: [{ id: camera_id }, { edge_device_id: device_id }] },
+      const device = await prisma.edgeDevices.findUnique({
+        where: { id: device_id },
         select: {
+          id: true,
           name: true,
         },
       });
 
-      if (!camera)
-        throw new ErrorResponse(StatusCodes.NOT_FOUND, 'Camera not found');
+      if (!device)
+        throw new ErrorResponse(StatusCodes.NOT_FOUND, 'Device not found');
 
-      const signaturePayload = `${device_id}:${camera_id}:${timestamp.getTime()}`;
-      const hasher = new CryptoHasher('sha256', LiveKitConfig.API_SECRET);
+      const signaturePayload = `${device_id}:${timestamp.getTime()}`;
+      const hasher = new CryptoHasher('sha256', LiveKitConfig.DEVICE_SECRET);
 
       hasher.update(signaturePayload);
 
@@ -73,8 +69,8 @@ export abstract class LiveKitService {
       if (signatureKey !== signature)
         throw new ErrorResponse(StatusCodes.UNAUTHORIZED, 'Invalid signature');
 
-      tokenIdentity = `id_${camera_id}`;
-      accessName = camera.name;
+      tokenIdentity = `id_${device_id}`;
+      accessName = device.name;
     }
 
     const at = new AccessToken(

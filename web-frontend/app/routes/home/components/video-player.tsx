@@ -1,12 +1,12 @@
 import {
   type TrackReference,
   type TrackReferenceOrPlaceholder,
-  useRoomContext,
+  useDataChannel,
   useTracks,
   VideoTrack,
 } from '@livekit/components-react';
-import { type DataPacket_Kind, type RemoteParticipant, RoomEvent, Track } from 'livekit-client';
-import { useEffect, useMemo, useState } from 'react';
+import { Track } from 'livekit-client';
+import { useMemo, useState } from 'react';
 
 import { cn } from '@/lib/utils';
 
@@ -14,16 +14,97 @@ import { Text } from '@/components/helper/text';
 
 import type { ILayoutDetail } from '@/schemas/types';
 
-type ITrackList = {
+interface ITrackList {
   id: string | null;
   trackRef?: TrackReference | undefined;
-};
+}
 
-type CameraEventData = {
+interface CameraEventData {
   label: string;
   confidence: number;
   camera_id: string;
-};
+  fps: number;
+}
+
+interface IVideoPlayer extends ITrackList {
+  eventData?: CameraEventData | undefined;
+  isAbnormal?: boolean | undefined;
+}
+
+export function LiveVideoPlayer({
+  dimension,
+  content,
+}: {
+  dimension: number[];
+  content: ILayoutDetail | null;
+}) {
+  const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: true }], {
+    onlySubscribed: true,
+  });
+
+  const [cameraEvents, setCameraEvents] = useState<Record<string, CameraEventData>>({});
+
+  useDataChannel('violence_detection', (message) => {
+    try {
+      const str = new TextDecoder().decode(message.payload);
+      const data = JSON.parse(str) as CameraEventData;
+      if (data.camera_id) {
+        setCameraEvents((prev) => ({ ...prev, [data.camera_id]: data }));
+      }
+    } catch (error) {
+      console.error('Failed to parse data message', error);
+    }
+  });
+
+  const trackList = useMemo(() => {
+    if (content) {
+      return mapPageTracks(dimension, content, tracks);
+    }
+    return [];
+  }, [dimension, content, tracks]);
+
+  return (
+    <>
+      {trackList.length > 0 ? (
+        <div
+          className={cn('grid h-full w-full items-center justify-items-center gap-2')}
+          style={{
+            gridTemplateColumns: `repeat(${dimension[1]}, minmax(0, 1fr))`,
+            gridTemplateRows: `repeat(${dimension[0]}, minmax(0, 1fr))`,
+          }}
+        >
+          {trackList.map((track, id) => {
+            const eventData = track.id ? cameraEvents[track.id] : undefined;
+            const isAbnormal =
+              eventData && eventData.label !== 'normal_event' && eventData.label !== 'Analyzing';
+
+            return (
+              <div
+                key={`${track.trackRef?.participant.identity}_${id}` || `track_${id}`}
+                className={cn(
+                  'group relative col-span-1 row-span-1 flex h-full w-full items-center justify-center bg-black shadow-lg'
+                )}
+              >
+                <VideoPlayer
+                  id={track.id}
+                  trackRef={track.trackRef}
+                  eventData={eventData}
+                  isAbnormal={isAbnormal}
+                />
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="flex h-full w-full items-center justify-center">
+          <Text type="h2" className="font-bold text-red-500">
+            No Track Found...
+          </Text>
+        </div>
+      )}
+    </>
+  );
+}
 
 function mapPageTracks(
   dimension: number[],
@@ -83,7 +164,7 @@ function VideoPlayerError({
   );
 }
 
-function VideoPlayer({ id, trackRef }: ITrackList) {
+function VideoPlayer({ id, trackRef, isAbnormal, eventData }: IVideoPlayer) {
   if (!id) {
     return <VideoPlayerError type="empty" />;
   }
@@ -104,106 +185,35 @@ function VideoPlayer({ id, trackRef }: ITrackList) {
         trackRef={trackRef as TrackReference | undefined}
         className="h-full w-full object-contain"
       />
-    </>
-  );
-}
 
-export function LiveVideoPlayer({
-  dimension,
-  content,
-}: {
-  dimension: number[];
-  content: ILayoutDetail | null;
-}) {
-  const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: true }], {
-    onlySubscribed: true,
-  });
-
-  const room = useRoomContext();
-  const [cameraEvents, setCameraEvents] = useState<Record<string, CameraEventData>>({});
-
-  useEffect(() => {
-    const handleDataReceived = (
-      payload: Uint8Array,
-      _participant?: RemoteParticipant,
-      _kind?: DataPacket_Kind,
-      _topic?: string
-    ) => {
-      try {
-        const str = new TextDecoder().decode(payload);
-        const data = JSON.parse(str) as CameraEventData;
-        if (data.camera_id) {
-          setCameraEvents((prev) => ({ ...prev, [data.camera_id]: data }));
-        }
-      } catch (error) {
-        console.error('Failed to parse data message', error);
-      }
-    };
-
-    room.on(RoomEvent.DataReceived, handleDataReceived);
-
-    return () => {
-      room.off(RoomEvent.DataReceived, handleDataReceived);
-    };
-  }, [room]);
-
-  const trackList = useMemo(() => {
-    if (content) {
-      return mapPageTracks(dimension, content, tracks);
-    }
-    return [];
-  }, [dimension, content, tracks]);
-
-  return (
-    <>
-      {trackList.length > 0 ? (
-        <div
-          className={cn('grid h-full w-full items-center justify-items-center gap-2')}
-          style={{
-            gridTemplateColumns: `repeat(${dimension[1]}, minmax(0, 1fr))`,
-            gridTemplateRows: `repeat(${dimension[0]}, minmax(0, 1fr))`,
-          }}
-        >
-          {trackList.map((track, id) => {
-            const eventData = track.id ? cameraEvents[track.id] : undefined;
-            const isAbnormal =
-              eventData && eventData.label !== 'normal_event' && eventData.label !== 'Analyzing';
-
-            return (
-              <div
-                key={`${track.trackRef?.participant.identity}_${id}` || `track_${id}`}
-                className={cn(
-                  'group relative col-span-1 row-span-1 flex h-full w-full items-center justify-center bg-black shadow-lg'
-                )}
-              >
-                <VideoPlayer id={track.id} trackRef={track.trackRef} />
-                <div
-                  className={cn(
-                    'absolute inset-0 z-30 ring-inset transition-all duration-150',
-                    isAbnormal ? 'ring-4 ring-red-500' : 'ring-0 ring-teal-800 hover:ring-4'
-                  )}
-                />
-                {eventData && (
-                  <Text
-                    type="btn"
-                    className={cn(
-                      'absolute bottom-0 left-0 z-20 rounded-tr-2xl bg-black/50 px-3 py-3 transition-all duration-150',
-                      isAbnormal ? 'font-bold text-red-500' : 'text-white'
-                    )}
-                  >
-                    {eventData.label} ({(eventData.confidence * 100).toFixed(1)}%)
-                  </Text>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="flex h-full w-full items-center justify-center">
-          <Text type="h2" className="font-bold text-red-500">
-            No Track Found...
+      <div
+        className={cn(
+          'absolute inset-0 z-30 ring-inset transition-all duration-150',
+          isAbnormal ? 'ring-4 ring-red-500' : 'ring-0 ring-teal-800 hover:ring-4'
+        )}
+      />
+      {eventData && (
+        <>
+          <Text
+            type="btn"
+            className={cn(
+              'absolute bottom-0 left-0 z-20 rounded-tr-2xl bg-black/50 px-3 py-3 transition-all duration-150',
+              isAbnormal ? 'font-bold text-red-500' : 'text-white'
+            )}
+          >
+            {eventData.label} ({(eventData.confidence * 100).toFixed(1)}%)
           </Text>
-        </div>
+
+          <Text
+            type="btn"
+            className={cn(
+              'absolute right-0 bottom-0 z-20 rounded-tl-2xl bg-black/50 px-3 py-3',
+              'text-white'
+            )}
+          >
+            {eventData.fps} FPS
+          </Text>
+        </>
       )}
     </>
   );

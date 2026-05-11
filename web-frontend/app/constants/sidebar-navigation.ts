@@ -1,13 +1,14 @@
 import {
   ClapperboardIcon,
+  HardDriveIcon,
   HistoryIcon,
   LayoutGridIcon,
   type LucideIcon,
-  Settings2Icon,
   SlidersVerticalIcon,
   TrendingUpIcon,
   TvMinimalIcon,
   UsersIcon,
+  VideoIcon,
 } from 'lucide-react';
 
 export interface sidebarItemDetail {
@@ -40,9 +41,14 @@ export const sidebarItems = [
         href: '/layout',
       },
       {
-        icon: Settings2Icon,
-        title: 'Settings',
-        href: '/setting',
+        icon: HardDriveIcon,
+        title: 'Device Settings',
+        href: '/device-settings',
+      },
+      {
+        icon: VideoIcon,
+        title: 'CCTV Settings',
+        href: '/cctv-settings',
       },
     ],
   },
@@ -69,7 +75,7 @@ export const sidebarItems = [
       {
         icon: SlidersVerticalIcon,
         title: 'Settings',
-        href: '/alarm-setting',
+        href: '/alarm-settings',
       },
       {
         icon: HistoryIcon,
@@ -85,7 +91,7 @@ export const sidebarItems = [
       {
         icon: SlidersVerticalIcon,
         title: 'Settings',
-        href: '/system-setting',
+        href: '/system-settings',
       },
       {
         icon: UsersIcon,
