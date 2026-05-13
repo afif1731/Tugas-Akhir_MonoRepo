@@ -43,6 +43,7 @@ services:
     environment:
       - LIVEKIT_KEYS=${LIVEKIT_KEYS}
       - LIVEKIT_RTC_NODE_IP=${LIVEKIT_NODE_IP}
+      - LIVEKIT_RTC_USE_EXTERNAL_IP=${LIVEKIT_USE_EXTERNAL_IP}
     volumes:
       - ./livekit-conf/livekit.yaml:/etc/livekit.yaml
 

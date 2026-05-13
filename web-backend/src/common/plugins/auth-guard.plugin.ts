@@ -22,7 +22,7 @@ export const AuthPlugin = new Elysia({ name: 'auth-plugin' }).macro({
       if (!enabled) return;
 
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-      const token = cookie['access-cookie'].value as string | undefined;
+      const token = cookie['access-cookie']?.value as string | undefined;
 
       if (!token) {
         if (optional) return { user: undefined };

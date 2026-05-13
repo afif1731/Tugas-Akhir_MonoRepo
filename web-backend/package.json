@@ -5,7 +5,8 @@
   "main": "src/main.ts",
   "scripts": {
     "build": "bun build src/main.ts --target bun --outdir ./dist",
-    "build:binary": "bun build --compile --minify-whitespace --minify-syntax --target bun --outfile server ./src/main.ts --external consolidate",
+    "build:binary": "bun build --compile --target bun --outfile server ./src/main.ts --external consolidate",
+    "build:binary:prod": "dotenv -e ../.env.production -- bun build:binary",
     "db:dev": "dotenv -e ../.env.development -- bun migrate:dev && bun seed:dev",
     "db:prod": "dotenv -e ../.env.production -- bun migrate:dev && bun seed:dev",
     "docker:down:dev": "docker compose --env-file ../.env.development -f ../docker-compose-db.yml down",
