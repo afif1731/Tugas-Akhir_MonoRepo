@@ -1,7 +1,10 @@
 import { resolveSync } from 'bun';
 import csv from 'csvtojson';
 
-import { type DeviceStatus } from '../../../generated/prisma/enums';
+import {
+  type CameraSourceType,
+  type DeviceStatus,
+} from '../../../generated/prisma/enums';
 import { prisma } from '../../../src/common';
 
 interface ICameras {
@@ -9,6 +12,8 @@ interface ICameras {
   name: string;
   status: DeviceStatus;
   edge_device_id: string;
+  source: string;
+  source_type: CameraSourceType;
 }
 
 function createSlug(text: string): string {
@@ -38,12 +43,16 @@ export const camerasSeed = async () => {
           name: data.name,
           status: data.status,
           edge_device_id: data.edge_device_id,
+          source: data.source,
+          source_type: data.source_type,
         },
         update: {
           slug: slug,
           name: data.name,
           status: data.status,
           edge_device_id: data.edge_device_id,
+          source: data.source,
+          source_type: data.source_type,
         },
       });
     }

@@ -14,6 +14,11 @@ export const GetAllDeviceQuerySchema = t.Object({
   orderById: OrderBySchema,
 });
 
+export const GetDeviceCameraQuerySchema = t.Object({
+  timestamp: t.Date(),
+  signature: StringSchema.id,
+});
+
 export const GetDeviceDetailResponseSchema = t.Object({
   id: StringSchema.uuid,
   name: StringSchema.text,
@@ -24,3 +29,4 @@ export const GetDeviceDetailResponseSchema = t.Object({
 });
 
 export type IGetAllDeviceQuery = typeof GetAllDeviceQuerySchema.static;
+export type IGetDevicecCameraQuery = typeof GetDeviceCameraQuerySchema.static;

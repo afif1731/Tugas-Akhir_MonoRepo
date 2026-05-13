@@ -3,6 +3,9 @@ import time
 import hmac
 import hashlib
 import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
 
 async def fetch_access_token(device_id: str, device_secret: str, backend_url: str):
     """Mengambil token dari backend menggunakan HMAC-SHA256 Auth"""
@@ -31,10 +34,10 @@ async def fetch_access_token(device_id: str, device_secret: str, backend_url: st
                     return result.get("data", {}).get("token")
                 else:
                     error_msg = await response.text()
-                    print(f"[ERROR] Gagal mengambil token (Status {response.status}): {error_msg}")
+                    logger.error(f"Gagal mengambil token (Status {response.status}): {error_msg}")
                     return None
     except Exception as e:
-        print(f"[ERROR] Kesalahan koneksi ke backend: {e}")
+        logger.error(f"Kesalahan koneksi ke backend: {e}")
         return None
 
 async def token_renewal_loop(device_id: str, device_secret: str, backend_url: str):
@@ -44,10 +47,10 @@ async def token_renewal_loop(device_id: str, device_secret: str, backend_url: st
     
     while True:
         await asyncio.sleep(renewal_interval)
-        print("\n[INFO] Memulai pembaruan LiveKit token otomatis...")
+        logger.info("Memulai pembaruan LiveKit token otomatis...")
         new_token = await fetch_access_token(device_id, device_secret, backend_url)
         
         if new_token:
-            print("[INFO] Token berhasil diperbarui dari backend!")
+            logger.info("Token berhasil diperbarui dari backend!")
         else:
-            print("[WARNING] Gagal memperbarui token. Akan mencoba lagi di siklus berikutnya.")
+            logger.warning("Gagal memperbarui token. Akan mencoba lagi di siklus berikutnya.")

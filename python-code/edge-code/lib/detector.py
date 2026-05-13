@@ -40,13 +40,13 @@ def yolo_pose_extraction(yolo_model: YOLO, frame: MatLike, V: int, M: int):
   
   return frame_pose_data, annotated_frame
 
-def gcn_classification(CLASSES: list[str], gcn_model: GCN_LSTM, pose_buffer: deque, frame_count: int, T: int):
+def gcn_classification(CLASSES: list[str], gcn_model: GCN_LSTM, pose_buffer: deque, frame_count: int, T: int, local_device=device):
   if len(pose_buffer) == T and frame_count % 5 == 0:
     tensor_data = np.stack(pose_buffer, axis=1)
-    input_tensor = torch.tensor(tensor_data, dtype=torch.float32).unsqueeze(0).to(device)
+    input_tensor = torch.tensor(tensor_data, dtype=torch.float32).unsqueeze(0).to(local_device)
 
     with torch.no_grad():
-      output = gcn_model(input_tensor, A)
+      output = gcn_model(input_tensor, A.to(local_device))
       probs = torch.softmax(output, dim=1)[0]
       class_idx = torch.argmax(probs).item()
       current_label = CLASSES[int(class_idx)]

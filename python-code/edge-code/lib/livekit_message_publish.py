@@ -1,7 +1,10 @@
 import json
 import psutil
 import asyncio
+import logging
 from livekit.rtc import Room
+
+logger = logging.getLogger(__name__)
 
 async def device_status_loop(room: Room, device_id: str):
     """Loop background untuk mengirim status (telemetri) edge device ke backend setiap 5 detik"""
@@ -28,7 +31,7 @@ async def device_status_loop(room: Room, device_id: str):
                 topic='device_status'
             )
         except Exception as e:
-            print(f"[ERROR] Gagal mengirim device status: {e}")
+            logger.error(f"Gagal mengirim device status: {e}")
             
         await asyncio.sleep(5)
 

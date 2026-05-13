@@ -1,7 +1,13 @@
+import { CryptoHasher } from 'bun';
 import { StatusCodes } from 'http-status-codes';
 import { validate as isValidUuid } from 'uuid';
 
-import { ErrorResponse, type IPaginatedResult, prisma } from '@/common';
+import {
+  ErrorResponse,
+  type IPaginatedResult,
+  LiveKitConfig,
+  prisma,
+} from '@/common';
 import { paginate } from '@/utils';
 import { type EdgeDevices } from '~/generated/prisma/client';
 import {
@@ -109,5 +115,44 @@ export abstract class EdgeDeviceService {
       throw new ErrorResponse(StatusCodes.NOT_FOUND, 'Device not found');
 
     return device;
+  }
+
+  static async getDeviceCameras(
+    device_id: string,
+    timestamp: Date,
+    signature: string,
+  ) {
+    const currentTime = new Date(Date.now());
+    if (Math.abs(currentTime.getTime() / 1000) - timestamp.getTime() > 180)
+      throw new ErrorResponse(StatusCodes.UNAUTHORIZED, 'Request is too old');
+
+    const device = await prisma.edgeDevices.findUnique({
+      where: { id: device_id },
+      select: {
+        id: true,
+        cameras: {
+          select: {
+            id: true,
+            source: true,
+            source_type: true,
+          },
+        },
+      },
+    });
+
+    if (!device)
+      throw new ErrorResponse(StatusCodes.NOT_FOUND, 'Device not found');
+
+    const signaturePayload = `${device_id}:${timestamp.getTime()}`;
+    const hasher = new CryptoHasher('sha256', LiveKitConfig.DEVICE_SECRET);
+
+    hasher.update(signaturePayload);
+
+    const signatureKey = hasher.digest('hex');
+
+    if (signatureKey !== signature)
+      throw new ErrorResponse(StatusCodes.UNAUTHORIZED, 'Invalid signature');
+
+    return device.cameras;
   }
 }

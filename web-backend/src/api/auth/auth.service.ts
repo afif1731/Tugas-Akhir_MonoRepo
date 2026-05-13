@@ -180,6 +180,12 @@ export abstract class AuthService {
   static async logoutService(refresh_token?: string): Promise<void> {
     if (!refresh_token) return;
 
+    const isTokenExist = await prisma.refreshTokens.findFirst({
+      where: { refresh_token },
+    });
+
+    if (!isTokenExist) return;
+
     await prisma.refreshTokens.delete({
       where: { refresh_token },
     });

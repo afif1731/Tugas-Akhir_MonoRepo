@@ -4,7 +4,7 @@ import { StatusCodes } from 'http-status-codes';
 import { AuthPlugin, SuccessResponse } from '@/common';
 
 import { EdgeDeviceService } from './edge-device.service';
-import { GetAllDeviceQuerySchema } from './schema';
+import { GetAllDeviceQuerySchema, GetDeviceCameraQuerySchema } from './schema';
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export const EdgeDeviceController = new Elysia({
@@ -46,6 +46,26 @@ export const EdgeDeviceController = new Elysia({
         },
         {
           authPlugin: { allowed_roles: ['ADMIN'] },
+        },
+      )
+      .get(
+        '/:device_id/cameras',
+        async ({ query, params: { device_id } }) => {
+          const result = await EdgeDeviceService.getDeviceCameras(
+            device_id,
+            query.timestamp,
+            query.signature,
+          );
+
+          return new SuccessResponse(
+            StatusCodes.OK,
+            'Get device cameras successfully',
+            result,
+          );
+        },
+        {
+          query: GetDeviceCameraQuerySchema,
+          authPlugin: { enabled: false },
         },
       )
       .patch('/:device_id', async () => {}, {
