@@ -1,14 +1,15 @@
 import { useDataChannel } from '@livekit/components-react';
 import { useState } from 'react';
 
-import { usePersistentTab } from '@/hooks/store/use-persistent-tab';
+import { usePersistentTab, useTab } from '@/hooks/store/use-persistent-tab';
 
 import type { IEdgeDevice, IEdgeDeviceState } from '@/schemas/models';
 
 import { EdgeDeviceListComponent, UnregisteredEdgeDeviceList } from './device-list';
 
 export function DeviceDataListener({ devices }: { devices: IEdgeDevice[] }) {
-  const { activeState } = usePersistentTab();
+  const { activeState, setState } = usePersistentTab();
+  const { setState: setTab } = useTab();
   const [deviceStates, setDeviceStates] = useState<IEdgeDeviceState[]>([]);
   const [unregisteredDevices, setUnregisteredDevices] = useState<IEdgeDeviceState[]>([]);
 
@@ -46,6 +47,10 @@ export function DeviceDataListener({ devices }: { devices: IEdgeDevice[] }) {
             }
           }
         });
+
+        if (hasChanges) setTab('unregistered_devices', `${next.length}`);
+        else setTab('unregistered_devices', `${prev.length}`);
+
         return hasChanges ? next : prev;
       });
     } catch (error) {

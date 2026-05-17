@@ -22,3 +22,11 @@ export const usePersistentTab = create<TabState>()(
     }
   )
 );
+
+export const useTab = create<TabState>((set) => ({
+  activeState: {},
+  setState: (type, value) =>
+    set((state) => ({
+      activeState: { ...state.activeState, [type]: value },
+    })),
+}));

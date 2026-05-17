@@ -10,7 +10,6 @@ export function DeviceListTypeButton({
   registerCount,
   unregisterCount,
 }: {
-  listType?: IListType;
   registerCount?: number;
   unregisterCount?: number;
 }) {

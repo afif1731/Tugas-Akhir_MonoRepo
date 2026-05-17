@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 
 import useLiveKitStore from '@/hooks/store/use-livekit';
+import { useTab } from '@/hooks/store/use-persistent-tab';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { api } from '@/lib/axios';
 import { cn, generateMeta, handleApiResponseError } from '@/lib/utils';
@@ -22,12 +23,15 @@ export function meta({}: Route.MetaArgs) {
 
 export default function CctvSettingsPage() {
   const isMobile = useIsMobile();
+  const { activeState, setState } = useTab();
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isError, setIsError] = useState<boolean>(false);
   const [devices, setDevices] = useState<IEdgeDevice[]>([]);
 
   const { token } = useLiveKitStore();
   const serverUrl = import.meta.env.VITE_LIVEKIT_URL;
+
+  setState('unregistered_devices', '');
 
   useEffect(() => {
     const fetchDevices = async () => {
@@ -61,7 +65,15 @@ export default function CctvSettingsPage() {
       </Text>
 
       <div className="flex w-full flex-row items-center justify-between pb-4">
-        <DeviceListTypeButton registerCount={devices.length} />
+        <DeviceListTypeButton
+          registerCount={devices.length}
+          unregisterCount={
+            (activeState.unregistered_devices as string | undefined) &&
+            activeState.unregistered_devices !== ''
+              ? Number.parseInt(activeState.unregistered_devices, 10)
+              : undefined
+          }
+        />
 
         <Button asChild variant="default" size="lg" leftIcon={<PlusIcon />}>
           <Link to="/device-settings/create">Create</Link>
