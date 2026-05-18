@@ -173,7 +173,7 @@ function VideoPlayer({ id, name, trackRef, isAbnormal, eventData }: IVideoPlayer
   }
 
   if (!trackRef) {
-    return <VideoPlayerError type="no_signal" name={id} />;
+    return <VideoPlayerError type="no_signal" name={name} />;
   }
 
   return (
