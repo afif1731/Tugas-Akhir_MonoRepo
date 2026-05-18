@@ -1,0 +1,16 @@
+name: mocavis-livekit
+
+services:
+  mocavis-rstp:
+    image: livekit/livekit-server:latest
+    container_name: mocavis-livekit-server
+    network_mode: "host"
+    command: --config /etc/livekit.yaml
+    restart: always
+    environment:
+      - LIVEKIT_KEYS=${LIVEKIT_KEYS}
+      - LIVEKIT_RTC_NODE_IP=${LIVEKIT_NODE_IP}
+      - LIVEKIT_RTC_USE_EXTERNAL_IP=${LIVEKIT_USE_EXTERNAL_IP}
+    volumes:
+      - ./livekit-conf/livekit-wss.yaml:/etc/livekit.yaml
+      - ${LIVEKIT_SSL_CERTS_DIR}:/certs:ro

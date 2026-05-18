@@ -1,0 +1,12 @@
+bind_addresses:
+    - ""
+port: 7880
+rtc:
+    tcp_port: 7881
+    udp_port: 7882
+tls:
+    cert: /certs/fullchain.pem
+    key: /certs/privkey.pem
+logging:
+    json: false
+    level: info
