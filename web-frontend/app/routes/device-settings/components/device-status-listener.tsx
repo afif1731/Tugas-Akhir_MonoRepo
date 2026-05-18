@@ -8,7 +8,7 @@ import type { IEdgeDevice, IEdgeDeviceState } from '@/schemas/models';
 import { EdgeDeviceListComponent, UnregisteredEdgeDeviceList } from './device-list';
 
 export function DeviceDataListener({ devices }: { devices: IEdgeDevice[] }) {
-  const { activeState, setState } = usePersistentTab();
+  const { activeState } = usePersistentTab();
   const { setState: setTab } = useTab();
   const [deviceStates, setDeviceStates] = useState<IEdgeDeviceState[]>([]);
   const [unregisteredDevices, setUnregisteredDevices] = useState<IEdgeDeviceState[]>([]);

@@ -16,6 +16,7 @@ import type { ILayoutDetail } from '@/schemas/types';
 
 interface ITrackList {
   id: string | null;
+  name: string;
   trackRef?: TrackReference | undefined;
 }
 
@@ -87,6 +88,7 @@ export function LiveVideoPlayer({
               >
                 <VideoPlayer
                   id={track.id}
+                  name={track.name}
                   trackRef={track.trackRef}
                   eventData={eventData}
                   isAbnormal={isAbnormal}
@@ -117,10 +119,11 @@ function mapPageTracks(
 
   for (let i = 0; i < maxTrack; i++) {
     newTrack.push({
-      id: content.camera_ids[i] || null,
+      id: content.cameras[i].id || null,
+      name: content.cameras[i].name,
       trackRef: tracks.find((track) => {
         const trackName = 'publication' in track ? track.publication?.trackName : undefined;
-        return trackName === `track_${content.camera_ids[i] || ''}`;
+        return trackName === `track_${content.cameras[i].id || ''}`;
       }) as TrackReference | undefined,
     });
   }
@@ -164,7 +167,7 @@ function VideoPlayerError({
   );
 }
 
-function VideoPlayer({ id, trackRef, isAbnormal, eventData }: IVideoPlayer) {
+function VideoPlayer({ id, name, trackRef, isAbnormal, eventData }: IVideoPlayer) {
   if (!id) {
     return <VideoPlayerError type="empty" />;
   }
@@ -179,7 +182,7 @@ function VideoPlayer({ id, trackRef, isAbnormal, eventData }: IVideoPlayer) {
         type="c"
         className="absolute top-0 left-0 z-20 rounded-br-2xl bg-black/50 px-3 py-3 text-white opacity-0 transition-all duration-150 group-hover:opacity-100"
       >
-        {trackRef?.participant.name}
+        {name}
       </Text>
       <VideoTrack
         trackRef={trackRef as TrackReference | undefined}

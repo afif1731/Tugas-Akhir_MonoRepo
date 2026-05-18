@@ -4,7 +4,10 @@ export interface ILiveKitToken {
 
 export interface ILayoutDetail {
   dimension?: number[];
-  camera_ids: string[];
+  cameras: {
+    id: string;
+    name: string;
+  }[];
 }
 
 export interface ILayoutPages {

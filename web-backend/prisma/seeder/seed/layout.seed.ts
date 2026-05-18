@@ -2,7 +2,7 @@ import { resolveSync } from 'bun';
 import csv from 'csvtojson';
 
 import { type InputJsonValue } from '../../../generated/prisma/internal/prismaNamespace';
-import { type ILayoutJson, prisma } from '../../../src/common';
+import { type IDatabaseLayoutJson, prisma } from '../../../src/common';
 
 interface ILayout {
   id: string;
@@ -32,7 +32,7 @@ export const layoutSeed = async () => {
         userId = user!.id;
       }
 
-      const layoutJson: ILayoutJson = {
+      const layoutJson: IDatabaseLayoutJson = {
         dimension: JSON.parse(data.layout_dimension) as number[],
         camera_ids: JSON.parse(data.camera_id_list) as string[],
       };

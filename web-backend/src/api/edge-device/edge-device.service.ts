@@ -131,6 +131,9 @@ export abstract class EdgeDeviceService {
       select: {
         id: true,
         cameras: {
+          where: {
+            status: 'ONLINE',
+          },
           select: {
             id: true,
             source: true,
