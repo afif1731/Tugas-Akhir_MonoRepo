@@ -33,6 +33,9 @@ if DEVICE_ID == 'not_set':
     logger.warning("Device ID not found, generating a new DEVICE_ID (Device ID will change every time the application restarts)")
     DEVICE_ID = str(uuid7())
 
+YOLO_FILE = os.getenv('YOLO_FILE', 'yolov8n-pose_full_integer_quant_edgetpu.tflite')
+GCN_FILE = os.getenv('GCN_FILE', 'GCN_LSTM_best_int8_edgetpu.tflite')
+
 CAMERAS = []
 
 CLASSES = ['assault', 'fighting', 'shooting', 'robbery', 'normal_event']
@@ -42,7 +45,9 @@ CONFIG = {
     "CLASSES": CLASSES,
     "T": T,
     "V": V,
-    "M": M
+    "M": M,
+    "YOLO_FILE": YOLO_FILE,
+    "GCN_FILE": GCN_FILE
 }
 
 async def main():

@@ -7,7 +7,6 @@ import logging
 from collections import deque
 from livekit import rtc
 
-from ultralytics import YOLO
 import tflite_runtime.interpreter as tflite
 
 logger = logging.getLogger(__name__)
@@ -50,12 +49,23 @@ async def run_camera_process(camera, room, config, backend_url):
     v_joints = config['V']
     m_people = config['M']
 
+    yolo_file = config.get('YOLO_FILE', 'yolov8n-pose_full_integer_quant_edgetpu.tflite')
+    gcn_file = config.get('GCN_FILE', 'GCN_LSTM_best_int8_edgetpu.tflite')
+
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    yolo_path = os.path.join(base_dir, "_model", "yolov8n-pose_full_integer_quant_edgetpu.tflite")
-    gcn_path = os.path.join(base_dir, "_model", "GCN_LSTM_best_int8_edgetpu.tflite")
+    yolo_path = os.path.join(base_dir, "_model", yolo_file)
+    gcn_path = os.path.join(base_dir, "_model", gcn_file)
 
     logger.info(f"Loading AI Model for camera {camera_id} (Edge TPU)...")
-    yolo_model = YOLO(yolo_path, task='pose')
+    try:
+        yolo_interpreter = tflite.Interpreter(
+            model_path=yolo_path,
+            experimental_delegates=[tflite.load_delegate('libedgetpu.so.1.0')]
+        )
+        yolo_interpreter.allocate_tensors()
+    except Exception as e:
+        logger.error(f"Failed to load YOLO Edge TPU delegate for camera {camera_id}: {e}")
+        return
 
     try:
         gcn_interpreter = tflite.Interpreter(
@@ -108,18 +118,18 @@ async def run_camera_process(camera, room, config, backend_url):
         frame = cv2.resize(frame, (640, 480))
         
         # --- PROSES YOLO POSE ---
-        frame_pose_data, annotated_frame = yolo_pose_extraction(yolo_model, frame, v_joints, m_people)
+        frame_pose_data, absolute_skeletons = yolo_pose_extraction(yolo_interpreter, frame, v_joints, m_people)
         pose_buffer.append(frame_pose_data)
 
         # --- PROSES GCN-LSTM ---
         new_label, new_conf = gcn_classification(classes, gcn_interpreter, pose_buffer, frame_count, t_frames)
         
-        return True, annotated_frame, new_label, new_conf, frame
+        return True, absolute_skeletons, new_label, new_conf, frame
 
     prev_time = time.time()
     try:
         while cap.isOpened():
-            ret, annotated_frame, new_label, new_conf, frame = await asyncio.to_thread(
+            ret, absolute_skeletons, new_label, new_conf, frame = await asyncio.to_thread(
                 process_frame_sync, cap, pose_buffer, frame_count
             )
             
@@ -142,13 +152,14 @@ async def run_camera_process(camera, room, config, backend_url):
                 "label": current_label,
                 "confidence": round(current_conf, 2),
                 "camera_id": camera_id,
-                "fps": round(fps, 1)
+                "fps": round(fps, 1),
+                "skeletons": absolute_skeletons
             }
 
             await publish_violence_detection(detection_data, room)
 
             # --- TRANSMISI KE REACT (LIVEKIT) ---
-            rgb_frame = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB) # pyright: ignore[reportArgumentType, reportCallIssue]
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) # pyright: ignore[reportArgumentType, reportCallIssue]
             
             lk_frame = rtc.VideoFrame(
                 width=640, 

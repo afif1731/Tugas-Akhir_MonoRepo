@@ -5,11 +5,12 @@ build/
 dist/
 wheels/
 *.egg-info
+.env.*
 
 # Virtual environments
 .venv
 
-!.env.edge-code.example
+!.env.example
 _dataset/
 _model/
 _reference/
