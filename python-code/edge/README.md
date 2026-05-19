@@ -18,10 +18,12 @@ echo 'export UV_CACHE_DIR="/mnt/sdcard/uv-cache"' >> ~/.bashrc
 source ~/.bashrc
 ```
 
-3. Sync the dependencies
+1. Create a venv and install the dependencies
 
 ```shell
-uv sync
+uv venv --python 3.11.13
+
+uv pip install -r requirements.edge.txt
 ```
 
 4. Download the models, you can use my models (Converted YOLOv8n-pose & Custom GCN Model) [here](https://drive.google.com/drive/folders/1KFOK7eS0uXo3yNqFNyNA-N1RghYFYC6E)
