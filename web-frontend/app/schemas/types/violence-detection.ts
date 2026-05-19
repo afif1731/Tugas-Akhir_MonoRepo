@@ -1,12 +1,16 @@
-// Tipe untuk keseluruhan payload yang diterima dari topik 'violence_detection'
 export interface ViolenceDetectionPayload {
-  label: string;
-  confidence: number;
   camera_id: string;
   fps: number;
+  events: ViolenceEvent[];
+}
+
+export interface ViolenceEvent {
+  group_id: number;
+  label: string;
+  confidence: number;
   skeletons: AbsoluteSkeleton[];
 }
-// Tipe untuk masing-masing objek skeleton (maksimal 3 objek dalam array)
+
 export interface AbsoluteSkeleton {
   /**
    * Koordinat Bounding Box dari individu tersebut.

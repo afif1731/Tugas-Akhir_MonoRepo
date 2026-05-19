@@ -5,7 +5,7 @@ from collections import deque
 
 import tflite_runtime.interpreter as tflite
 
-def yolo_pose_extraction(yolo_interpreter: tflite.Interpreter, frame: MatLike, V: int, M: int, conf_thresh=0.25, iou_thresh=0.45):
+def yolo_pose_extraction(yolo_interpreter: tflite.Interpreter, frame: MatLike, conf_thresh=0.25, iou_thresh=0.45):
     input_details = yolo_interpreter.get_input_details()[0]
     output_details = yolo_interpreter.get_output_details()[0]
     
@@ -83,17 +83,13 @@ def yolo_pose_extraction(yolo_interpreter: tflite.Interpreter, frame: MatLike, V
     
     indices = cv2.dnn.NMSBoxes(boxes_nms, scores_nms, conf_thresh, iou_thresh)
     
-    frame_pose_data = np.zeros((3, V, M))
-    absolute_skeletons = []
+    people = []
     
     if len(indices) > 0:
         indices = indices.flatten()
         sorted_indices = sorted(indices, key=lambda i: scores_nms[i], reverse=True)
         
-        num_people = min(len(sorted_indices), M)
-        for m in range(num_people):
-            idx = sorted_indices[m]
-            
+        for idx in sorted_indices:
             kpts = preds[idx, 5:].reshape((17, 3))
             kpts[:, 0] = (kpts[:, 0] - dw) / r
             kpts[:, 1] = (kpts[:, 1] - dh) / r
@@ -101,21 +97,24 @@ def yolo_pose_extraction(yolo_interpreter: tflite.Interpreter, frame: MatLike, V
             hip_l, hip_r = kpts[11], kpts[12]
             
             if hip_l[2] > 0.5 and hip_r[2] > 0.5:
-                pelvis_x = (hip_l[0] + hip_r[0]) / 2
-                pelvis_y = (hip_l[1] + hip_r[1]) / 2
+                pelvis_x = float((hip_l[0] + hip_r[0]) / 2)
+                pelvis_y = float((hip_l[1] + hip_r[1]) / 2)
                 
-                for v in range(min(V, 17)):
+                relative_kpts = np.zeros((3, 17))
+                for v in range(17):
                     if kpts[v][2] > 0.5:
-                        frame_pose_data[0, v, m] = kpts[v][0] - pelvis_x
-                        frame_pose_data[1, v, m] = kpts[v][1] - pelvis_y
-                        frame_pose_data[2, v, m] = kpts[v][2]
+                        relative_kpts[0, v] = kpts[v][0] - pelvis_x
+                        relative_kpts[1, v] = kpts[v][1] - pelvis_y
+                        relative_kpts[2, v] = kpts[v][2]
                         
-            absolute_skeletons.append({
-                "box": [float(x1[idx]), float(y1[idx]), float(w[idx]), float(h[idx])],
-                "keypoints": kpts.tolist()
-            })
+                people.append({
+                    "box": [float(x1[idx]), float(y1[idx]), float(w[idx]), float(h[idx])],
+                    "keypoints": kpts.tolist(),
+                    "pelvis": [pelvis_x, pelvis_y],
+                    "relative_kpts": relative_kpts
+                })
 
-    return frame_pose_data, absolute_skeletons
+    return people
 
 def gcn_classification(CLASSES: list[str], gcn_interpreter: tflite.Interpreter, pose_buffer: deque, frame_count: int, T: int):
     if len(pose_buffer) == T and frame_count % 5 == 0:

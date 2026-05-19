@@ -2,39 +2,19 @@ import os
 import cv2
 import time
 import asyncio
-import aiohttp
 import logging
-from collections import deque
-from livekit import rtc
-
+import numpy as np
 import tflite_runtime.interpreter as tflite
 
-logger = logging.getLogger(__name__)
+from livekit import rtc
+from collections import deque
 
-from lib.detector import yolo_pose_extraction, gcn_classification
 from lib.livekit_message_publish import publish_violence_detection
+from lib.detector import yolo_pose_extraction, gcn_classification
+from lib.crowd_cluster import CentroidTracker, spatial_clustering
+from lib.utils import validate_file
 
-async def validate_file(file_path: str, input_source: str, backend_url: str):
-    if not os.path.exists(file_path):
-        logger.info(f"File not found: {file_path}. Downloading from backend...")
-        url = f"{backend_url}/uploads/sample-video/{input_source}"
-        try:
-            # Ensure directory exists
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url) as response:
-                    if response.status == 200:
-                        with open(file_path, 'wb') as f:
-                            while True:
-                                chunk = await response.content.read(8192)
-                                if not chunk:
-                                    break
-                                f.write(chunk)
-                        logger.info(f"Successfully downloaded: {file_path}")
-                    else:
-                        logger.warning(f"Failed to download {input_source} from backend (Status {response.status})")
-        except Exception as e:
-            logger.error(f"Error downloading file: {e}")
+logger = logging.getLogger(__name__)
 
 async def run_camera_process(camera, room, config, backend_url):
     """
@@ -102,35 +82,86 @@ async def run_camera_process(camera, room, config, backend_url):
         case _:
             cap = cv2.VideoCapture(input_source)
 
-    pose_buffer = deque(maxlen=t_frames)
+    tracker = CentroidTracker(max_disappeared=50, max_distance=300)
+    cluster_buffers = {}
+    cluster_labels = {}
     frame_count = 0
-    
-    current_label = "Analyzing"
-    current_conf = 0.0
 
     logger.info(f"Starting processing from source: {input_source} (Camera ID: {camera_id})")
 
-    def process_frame_sync(cap, pose_buffer, frame_count):
+    def process_frame_sync(cap, frame_count):
         ret, frame = cap.read()
         if not ret:
-            return False, None, None, None, None
+            return False, [], frame
             
         frame = cv2.resize(frame, (640, 480))
         
         # --- PROSES YOLO POSE ---
-        frame_pose_data, absolute_skeletons = yolo_pose_extraction(yolo_interpreter, frame, v_joints, m_people)
-        pose_buffer.append(frame_pose_data)
-
-        # --- PROSES GCN-LSTM ---
-        new_label, new_conf = gcn_classification(classes, gcn_interpreter, pose_buffer, frame_count, t_frames)
+        people = yolo_pose_extraction(yolo_interpreter, frame)
+        clusters = spatial_clustering(people, max_distance=200)
         
-        return True, absolute_skeletons, new_label, new_conf, frame
+        cluster_centroids = []
+        for cluster in clusters:
+            cx = sum(p["pelvis"][0] for p in cluster) / len(cluster)
+            cy = sum(p["pelvis"][1] for p in cluster) / len(cluster)
+            cluster_centroids.append([cx, cy])
+            
+        tracked = tracker.update(cluster_centroids)
+        
+        events = []
+        
+        for cluster_idx, object_id in tracked.items():
+            if object_id not in cluster_buffers:
+                cluster_buffers[object_id] = deque(maxlen=t_frames)
+                cluster_labels[object_id] = {"label": "Analyzing", "conf": 0.0}
+                
+            cluster_people = clusters[cluster_idx]
+            
+            num_people = min(len(cluster_people), m_people)
+            
+            frame_pose_data = np.zeros((3, v_joints, m_people))
+            absolute_skeletons = []
+            
+            for m in range(num_people):
+                person = cluster_people[m]
+                frame_pose_data[:, :, m] = person["relative_kpts"]
+                absolute_skeletons.append({
+                    "box": person["box"],
+                    "keypoints": person["keypoints"]
+                })
+                
+            cluster_buffers[object_id].append(frame_pose_data)
+            
+            # --- PROSES GCN-LSTM ---
+            new_label, new_conf = gcn_classification(classes, gcn_interpreter, cluster_buffers[object_id], frame_count, t_frames)
+            
+            if new_label is not None and new_conf is not None:
+                cluster_labels[object_id]["label"] = new_label
+                cluster_labels[object_id]["conf"] = new_conf
+                
+            current_label = cluster_labels[object_id]["label"]
+            current_conf = cluster_labels[object_id]["conf"]
+            
+            events.append({
+                "group_id": object_id,
+                "label": current_label,
+                "confidence": round(current_conf, 2),
+                "skeletons": absolute_skeletons
+            })
+            
+        active_object_ids = set(tracked.values())
+        for obj_id in list(cluster_buffers.keys()):
+            if obj_id not in active_object_ids and obj_id not in tracker.objects:
+                del cluster_buffers[obj_id]
+                del cluster_labels[obj_id]
+                
+        return True, events, frame
 
     prev_time = time.time()
     try:
         while cap.isOpened():
-            ret, absolute_skeletons, new_label, new_conf, frame = await asyncio.to_thread(
-                process_frame_sync, cap, pose_buffer, frame_count
+            ret, events, frame = await asyncio.to_thread(
+                process_frame_sync, cap, frame_count
             )
             
             if not ret:
@@ -140,20 +171,14 @@ async def run_camera_process(camera, room, config, backend_url):
                 else:
                     break
 
-            if new_label is not None and new_conf is not None:
-                current_label = new_label
-                current_conf = new_conf
-            
             current_time = time.time()
             fps = 1.0 / (current_time - prev_time) if (current_time - prev_time) > 0 else 0.0
             prev_time = current_time
             
             detection_data = {
-                "label": current_label,
-                "confidence": round(current_conf, 2),
                 "camera_id": camera_id,
                 "fps": round(fps, 1),
-                "skeletons": absolute_skeletons
+                "events": events
             }
 
             await publish_violence_detection(detection_data, room)
