@@ -1,11 +1,10 @@
 import cv2
 import numpy as np
-from cv2.typing import MatLike
 from collections import deque
 
 import tflite_runtime.interpreter as tflite
 
-def yolo_pose_extraction(yolo_interpreter: tflite.Interpreter, frame: MatLike, conf_thresh=0.25, iou_thresh=0.45):
+def yolo_pose_extraction(yolo_interpreter: tflite.Interpreter, frame: np.ndarray, conf_thresh=0.25, iou_thresh=0.45):
     input_details = yolo_interpreter.get_input_details()[0]
     output_details = yolo_interpreter.get_output_details()[0]
     

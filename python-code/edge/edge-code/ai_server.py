@@ -1,7 +1,6 @@
 import os
 import cv2
 import json
-import time
 import struct
 import socket
 import logging
