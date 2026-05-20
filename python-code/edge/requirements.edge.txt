@@ -3,7 +3,7 @@ opencv-python-headless==4.11.0.86
 numpy==1.26.4
 livekit==1.1.8
 livekit-api==1.1.0
-python-dotenv==1.2.2
+python-dotenv==1.2.1
 aiohttp==3.13.5
 uuid6==2025.0.1
 psutil==7.2.2
