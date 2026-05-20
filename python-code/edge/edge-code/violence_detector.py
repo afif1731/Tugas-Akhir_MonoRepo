@@ -12,6 +12,8 @@ from lib.livekit_message_publish import publish_violence_detection
 
 logger = logging.getLogger(__name__)
 
+from lib.utils import validate_file
+
 def recv_exact(sock, n):
     data = bytearray()
     while len(data) < n:
@@ -30,6 +32,12 @@ async def run_camera_process(camera, room, config, backend_url):
     input_source = camera['source']
     source_type = camera['source_type']
     
+    # Validasi File (Download jika belum ada)
+    if source_type == 'STATIC_FILE':
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        file_path = os.path.join(base_dir, "_video_sample", input_source)
+        await validate_file(file_path, input_source, backend_url)
+        
     livekit_track_name = f"track_{camera_id}"
     
     logger.info(f"Setting up LiveKit transmission for camera {camera_id}")

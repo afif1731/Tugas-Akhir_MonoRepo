@@ -104,6 +104,10 @@ def handle_client(conn, addr):
             cap = cv2.VideoCapture(file_path)
         else:
             cap = cv2.VideoCapture(input_source)
+            
+        if cap is None or not cap.isOpened():
+            logger.error(f"[{camera_id}] Failed to open video source: {input_source} (type: {source_type})")
+            return
 
         tracker = CentroidTracker(max_disappeared=50, max_distance=300)
         cluster_buffers = {}

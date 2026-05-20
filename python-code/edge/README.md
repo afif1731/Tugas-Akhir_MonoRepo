@@ -4,6 +4,22 @@
 
 This code is now can only run in Edge Device with TPU environment
 
+**Important Note:** There is a possibility that your coral dev board has different runtime version than the required (v14, not v13).
+
+if you get an error like the one below
+
+```cmd
+Failed precondition: Package requires runtime version (14), which is newer than this runtime version (13).Node number 185 (EdgeTpuDelegateForCustomOp) failed to prepare.
+```
+
+try to update the `libedgetpu1` first
+
+```shell
+sudo apt-get update
+
+sudo apt-get install libedgetpu1-max
+```
+
 1. Install `uv`
 
 2. When you're running the code in Google Coral Device and you have sdcard mounted, make sure to change the uv cache to your sdcard to make sure your device didn't running out of memory
