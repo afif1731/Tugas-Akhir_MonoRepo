@@ -1,5 +1,6 @@
 import os
 import cv2
+import time
 import json
 import struct
 import socket
@@ -119,7 +120,11 @@ def handle_client(conn, addr):
         encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 80]
         
         while cap.isOpened():
+            t_start = time.time()
+            
             ret, frame = cap.read()
+            t_read = time.time()
+            
             if not ret:
                 if isinstance(input_source, str) and not str(input_source).startswith("rtsp"):
                     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
@@ -128,9 +133,12 @@ def handle_client(conn, addr):
                     break
 
             frame = cv2.resize(frame, (640, 480))
+            t_resize = time.time()
             
             # --- PROSES YOLO POSE ---
             people = yolo_pose_extraction(yolo_interpreter, frame)
+            t_yolo = time.time()
+            
             clusters = spatial_clustering(people, max_distance=200)
             
             cluster_centroids = []
@@ -185,6 +193,8 @@ def handle_client(conn, addr):
                     del cluster_buffers[obj_id]
                     del cluster_labels[obj_id]
                     
+            t_gcn = time.time()
+                    
             # Encode frame to JPEG
             ret, jpeg = cv2.imencode('.jpg', frame, encode_param)
             jpeg_bytes = jpeg.tobytes()
@@ -193,13 +203,17 @@ def handle_client(conn, addr):
             json_bytes = json.dumps(events).encode('utf-8')
             
             # Transmit (Lengths + Payloads)
-            # Format: <JPEG_LEN (4 bytes)> <JPEG_BYTES> <JSON_LEN (4 bytes)> <JSON_BYTES>
             header = struct.pack('>I', len(jpeg_bytes))
             conn.sendall(header + jpeg_bytes)
             
             header_json = struct.pack('>I', len(json_bytes))
             conn.sendall(header_json + json_bytes)
             
+            t_transmit = time.time()
+            
+            if frame_count % 15 == 0:
+                logger.info(f"[{camera_id}] PROFILE (ms) - Camera: {(t_read-t_start)*1000:.1f} | Resize: {(t_resize-t_read)*1000:.1f} | YOLO: {(t_yolo-t_resize)*1000:.1f} | GCN+Tracker: {(t_gcn-t_yolo)*1000:.1f} | TX/Network: {(t_transmit-t_gcn)*1000:.1f}")
+                
             frame_count += 1
             
     except (ConnectionResetError, BrokenPipeError):
