@@ -33,12 +33,19 @@ def yolo_pose_extraction(yolo_interpreter: tflite.Interpreter, frame: np.ndarray
     
     input_scale, input_zp = input_details['quantization']
     if input_scale > 0:
+        factor = 1.0 / (255.0 * input_scale)
         if input_details['dtype'] == np.int8:
-                input_data = (img_rgb / 255.0) / input_scale + input_zp
-                input_data = np.clip(np.round(input_data), -128, 127).astype(np.int8)
+            input_data = img_rgb.astype(np.float32)
+            input_data *= factor
+            input_data += input_zp
+            np.round(input_data, out=input_data)
+            input_data = np.clip(input_data, -128, 127).astype(np.int8)
         else:
-                input_data = (img_rgb / 255.0) / input_scale + input_zp
-                input_data = np.clip(np.round(input_data), 0, 255).astype(np.uint8)
+            input_data = img_rgb.astype(np.float32)
+            input_data *= factor
+            input_data += input_zp
+            np.round(input_data, out=input_data)
+            input_data = np.clip(input_data, 0, 255).astype(np.uint8)
     else:
         input_data = (img_rgb / 255.0).astype(np.float32)
         
@@ -52,17 +59,34 @@ def yolo_pose_extraction(yolo_interpreter: tflite.Interpreter, frame: np.ndarray
     
     out_scale, out_zp = output_details['quantization']
     if out_scale > 0:
-        output_data = (output_data.astype(np.float32) - out_zp) * out_scale
+        quantized_thresh = int(round((conf_thresh / out_scale) + out_zp))
         
-    if len(output_data.shape) == 3 and output_data.shape[1] == 56:
-            preds = output_data[0].T
+        if len(output_data.shape) == 3 and output_data.shape[1] == 56:
+            preds_int8 = output_data[0] # shape (56, 8400)
+            scores_int8 = preds_int8[4, :]
+            valid_idx = scores_int8 > quantized_thresh
+            
+            filtered_preds_int8 = preds_int8[:, valid_idx].T
+            preds = (filtered_preds_int8.astype(np.float32) - out_zp) * out_scale
+        else:
+            preds_int8 = output_data[0].T if output_data.shape[1] < output_data.shape[2] else output_data[0]
+            scores_int8 = preds_int8[:, 4]
+            valid_idx = scores_int8 > quantized_thresh
+            
+            filtered_preds_int8 = preds_int8[valid_idx]
+            preds = (filtered_preds_int8.astype(np.float32) - out_zp) * out_scale
+            
+        scores = preds[:, 4]
     else:
+        if len(output_data.shape) == 3 and output_data.shape[1] == 56:
+            preds = output_data[0].T
+        else:
             preds = output_data[0].T if output_data.shape[1] < output_data.shape[2] else output_data[0]
             
-    raw_scores = preds[:, 4]
-    valid_idx = raw_scores > conf_thresh
-    preds = preds[valid_idx]
-    scores = preds[:, 4]
+        raw_scores = preds[:, 4]
+        valid_idx = raw_scores > conf_thresh
+        preds = preds[valid_idx]
+        scores = preds[:, 4]
     
     boxes = preds[:, :4]
     x = boxes[:, 0]
