@@ -59,9 +59,10 @@ def yolo_pose_extraction(yolo_interpreter: tflite.Interpreter, frame: np.ndarray
     else:
             preds = output_data[0].T if output_data.shape[1] < output_data.shape[2] else output_data[0]
             
-    scores = preds[:, 4]
-    valid_idx = scores > conf_thresh
+    raw_scores = preds[:, 4]
+    valid_idx = raw_scores > conf_thresh
     preds = preds[valid_idx]
+    scores = preds[:, 4]
     
     boxes = preds[:, :4]
     x = boxes[:, 0]
