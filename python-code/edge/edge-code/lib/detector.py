@@ -77,16 +77,35 @@ def yolo_pose_extraction(yolo_interpreter: tflite.Interpreter, frame: np.ndarray
     x1 = x - w / 2
     y1 = y - h / 2
     
-    boxes_nms = [[float(x1[i]), float(y1[i]), float(w[i]), float(h[i])] for i in range(len(x1))]
-    scores_nms = [float(s) for s in preds[:, 4]]
-    
-    indices = cv2.dnn.NMSBoxes(boxes_nms, scores_nms, conf_thresh, iou_thresh)
-    
     people = []
     
-    if len(indices) > 0:
-        indices = indices.flatten()
-        sorted_indices = sorted(indices, key=lambda i: scores_nms[i], reverse=True)
+    if len(x1) > 0:
+        x2 = x1 + w
+        y2 = y1 + h
+        areas = w * h
+        order = scores.argsort()[::-1]
+        
+        keep = []
+        while order.size > 0:
+            i = order[0]
+            keep.append(i)
+            if order.size == 1:
+                break
+                
+            xx1 = np.maximum(x1[i], x1[order[1:]])
+            yy1 = np.maximum(y1[i], y1[order[1:]])
+            xx2 = np.minimum(x2[i], x2[order[1:]])
+            yy2 = np.minimum(y2[i], y2[order[1:]])
+            
+            w_inter = np.maximum(0.0, xx2 - xx1)
+            h_inter = np.maximum(0.0, yy2 - yy1)
+            inter = w_inter * h_inter
+            
+            ovr = inter / (areas[i] + areas[order[1:]] - inter)
+            inds = np.where(ovr <= iou_thresh)[0]
+            order = order[inds + 1]
+            
+        sorted_indices = keep
         
         for idx in sorted_indices:
             kpts = preds[idx, 5:].reshape((17, 3))
