@@ -16,47 +16,28 @@ from lib.utils import validate_file
 
 logger = logging.getLogger(__name__)
 
-_shared_edgetpu_delegate = None
-
-def get_edgetpu_delegate():
-    global _shared_edgetpu_delegate
-    if _shared_edgetpu_delegate is None:
-        delegate_lib = os.getenv('EDGETPU_SHARED_LIB', 'libedgetpu.so.1')
-        try:
-            logger.info(f"C-LOG: Executing tflite.load_delegate('{delegate_lib}')")
-            _shared_edgetpu_delegate = tflite.load_delegate(delegate_lib)
-            logger.info("C-LOG: tflite.load_delegate SUCCESS")
-        except Exception as e:
-            logger.warning(f"Failed to load Edge TPU delegate globally: {e}")
-            _shared_edgetpu_delegate = "FAILED"
-    return _shared_edgetpu_delegate
-
 def load_interpreter(model_path, camera_id, model_name):
     logger.info(f"C-LOG: Starting model load for {model_name}...")
-    delegate = get_edgetpu_delegate()
     
-    if delegate is not None and delegate != "FAILED":
-        try:
-            logger.info("C-LOG: Executing tflite.Interpreter(model_path, delegate)")
-            interpreter = tflite.Interpreter(
-                model_path=model_path,
-                experimental_delegates=[delegate]
-            )
-            logger.info("C-LOG: tflite.Interpreter SUCCESS")
+    # 1. Coba memuat dengan PyCoral (Aman dari ABI Mismatch & Segfault)
+    try:
+        from pycoral.utils import edgetpu
+        logger.info("C-LOG: Executing edgetpu.make_interpreter(...)")
+        interpreter = edgetpu.make_interpreter(model_path)
+        logger.info("C-LOG: edgetpu.make_interpreter SUCCESS")
+        
+        logger.info("C-LOG: Executing interpreter.allocate_tensors()")
+        interpreter.allocate_tensors()
+        logger.info("C-LOG: interpreter.allocate_tensors() SUCCESS")
+        
+        logger.info(f"Successfully loaded {model_name} with Edge TPU (PyCoral) for camera {camera_id}.")
+        return interpreter
+    except ImportError:
+        logger.warning(f"PyCoral is not installed. Falling back to CPU for {model_name} (Camera {camera_id})...")
+    except Exception as e:
+        logger.warning(f"Failed to load Edge TPU model via PyCoral for {model_name} (Camera {camera_id}): {e}. Falling back to CPU...")
             
-            logger.info("C-LOG: Executing interpreter.allocate_tensors()")
-            interpreter.allocate_tensors()
-            logger.info("C-LOG: interpreter.allocate_tensors() SUCCESS")
-            
-            # Referensi tunggal delegate agar aman dari GC
-            interpreter._delegate_ref = delegate 
-            
-            logger.info(f"Successfully loaded {model_name} with Edge TPU delegate for camera {camera_id}.")
-            return interpreter
-        except Exception as e:
-            logger.warning(f"Failed to allocate tensors with Edge TPU delegate for {model_name} (Camera {camera_id}): {e}. Falling back to CPU...")
-            
-    # Fallback to CPU
+    # 2. Fallback to CPU (TFLite Runtime standard)
     try:
         logger.info("C-LOG: Executing tflite.Interpreter (CPU Fallback)")
         interpreter = tflite.Interpreter(model_path=model_path)
