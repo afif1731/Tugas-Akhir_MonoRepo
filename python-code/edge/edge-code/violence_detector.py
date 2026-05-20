@@ -16,6 +16,29 @@ from lib.utils import validate_file
 
 logger = logging.getLogger(__name__)
 
+def load_interpreter(model_path, camera_id, model_name):
+    delegate_lib = os.getenv('EDGETPU_SHARED_LIB', 'libedgetpu.so.1')
+    
+    try:
+        delegate = tflite.load_delegate(delegate_lib)
+        interpreter = tflite.Interpreter(
+            model_path=model_path,
+            experimental_delegates=[delegate]
+        )
+        interpreter.allocate_tensors()
+        logger.info(f"Successfully loaded {model_name} with Edge TPU delegate for camera {camera_id}.")
+        return interpreter
+    except Exception as e:
+        logger.warning(f"Failed to load Edge TPU delegate for {model_name} (Camera {camera_id}): {e}. Falling back to CPU...")
+        try:
+            interpreter = tflite.Interpreter(model_path=model_path)
+            interpreter.allocate_tensors()
+            logger.info(f"Successfully loaded {model_name} on CPU for camera {camera_id}.")
+            return interpreter
+        except Exception as cpu_err:
+            logger.error(f"Failed CPU load fallback for {model_name} (Camera {camera_id}): {cpu_err}")
+            raise cpu_err
+
 async def run_camera_process(camera, room, config, backend_url):
     """
     Menjalankan proses inferensi dan pengiriman data ke LiveKit untuk satu kamera spesifik.
@@ -36,25 +59,17 @@ async def run_camera_process(camera, room, config, backend_url):
     yolo_path = os.path.join(base_dir, "_model", yolo_file)
     gcn_path = os.path.join(base_dir, "_model", gcn_file)
 
-    logger.info(f"Loading AI Model for camera {camera_id} (Edge TPU)...")
-    logger.info(f"Loading the YOLO Pose Model {yolo_file}")
+    logger.info(f"Loading AI Model for camera {camera_id}...")
     try:
-        yolo_interpreter = tflite.Interpreter(
-            model_path=yolo_path
-        )
-        yolo_interpreter.allocate_tensors()
+        yolo_interpreter = load_interpreter(yolo_path, camera_id, "YOLO Pose")
     except Exception as e:
-        logger.error(f"Failed to load YOLO Edge TPU delegate for camera {camera_id}: {e}")
+        logger.error(f"Critical failure loading YOLO model for camera {camera_id}: {e}")
         return
 
-    logger.info(f"Loading the GCN Model {gcn_file}")
     try:
-        gcn_interpreter = tflite.Interpreter(
-            model_path=gcn_path
-        )
-        gcn_interpreter.allocate_tensors()
+        gcn_interpreter = load_interpreter(gcn_path, camera_id, "GCN-LSTM")
     except Exception as e:
-        logger.error(f"Failed to load GCN_LSTM Edge TPU delegate for camera {camera_id}: {e}")
+        logger.error(f"Critical failure loading GCN_LSTM model for camera {camera_id}: {e}")
         return
 
     livekit_track_name = f"track_{camera_id}"
