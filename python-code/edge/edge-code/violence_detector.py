@@ -16,28 +16,43 @@ from lib.utils import validate_file
 
 logger = logging.getLogger(__name__)
 
-def load_interpreter(model_path, camera_id, model_name):
-    delegate_lib = os.getenv('EDGETPU_SHARED_LIB', 'libedgetpu.so.1')
-    
-    try:
-        delegate = tflite.load_delegate(delegate_lib)
-        interpreter = tflite.Interpreter(
-            model_path=model_path,
-            experimental_delegates=[delegate]
-        )
-        interpreter.allocate_tensors()
-        logger.info(f"Successfully loaded {model_name} with Edge TPU delegate for camera {camera_id}.")
-        return interpreter
-    except Exception as e:
-        logger.warning(f"Failed to load Edge TPU delegate for {model_name} (Camera {camera_id}): {e}. Falling back to CPU...")
+_shared_edgetpu_delegate = None
+
+def get_edgetpu_delegate():
+    global _shared_edgetpu_delegate
+    if _shared_edgetpu_delegate is None:
+        delegate_lib = os.getenv('EDGETPU_SHARED_LIB', 'libedgetpu.so.1')
         try:
-            interpreter = tflite.Interpreter(model_path=model_path)
+            _shared_edgetpu_delegate = tflite.load_delegate(delegate_lib)
+        except Exception as e:
+            logger.warning(f"Failed to load Edge TPU delegate globally: {e}")
+            _shared_edgetpu_delegate = "FAILED"
+    return _shared_edgetpu_delegate
+
+def load_interpreter(model_path, camera_id, model_name):
+    delegate = get_edgetpu_delegate()
+    
+    if delegate is not None and delegate != "FAILED":
+        try:
+            interpreter = tflite.Interpreter(
+                model_path=model_path,
+                experimental_delegates=[delegate]
+            )
             interpreter.allocate_tensors()
-            logger.info(f"Successfully loaded {model_name} on CPU for camera {camera_id}.")
+            logger.info(f"Successfully loaded {model_name} with Edge TPU delegate for camera {camera_id}.")
             return interpreter
-        except Exception as cpu_err:
-            logger.error(f"Failed CPU load fallback for {model_name} (Camera {camera_id}): {cpu_err}")
-            raise cpu_err
+        except Exception as e:
+            logger.warning(f"Failed to allocate tensors with Edge TPU delegate for {model_name} (Camera {camera_id}): {e}. Falling back to CPU...")
+            
+    # Fallback to CPU
+    try:
+        interpreter = tflite.Interpreter(model_path=model_path)
+        interpreter.allocate_tensors()
+        logger.info(f"Successfully loaded {model_name} on CPU for camera {camera_id}.")
+        return interpreter
+    except Exception as cpu_err:
+        logger.error(f"Failed CPU load fallback for {model_name} (Camera {camera_id}): {cpu_err}")
+        raise cpu_err
 
 async def run_camera_process(camera, room, config, backend_url):
     """
