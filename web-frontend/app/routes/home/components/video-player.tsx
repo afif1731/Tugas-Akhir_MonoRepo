@@ -12,23 +12,20 @@ import { cn } from '@/lib/utils';
 
 import { Text } from '@/components/helper/text';
 
-import type { ILayoutDetail } from '@/schemas/types';
+import type { ILayoutDetail, ViolenceDetectionPayload } from '@/schemas/types';
+
+import { SkeletonOverlay } from './skeleton-overlay';
 
 interface ITrackList {
   id: string | null;
   name: string;
   trackRef?: TrackReference | undefined;
-}
-
-interface CameraEventData {
-  label: string;
-  confidence: number;
-  camera_id: string;
-  fps: number;
+  show_skeleton?: boolean;
+  show_box?: boolean;
 }
 
 interface IVideoPlayer extends ITrackList {
-  eventData?: CameraEventData | undefined;
+  eventData?: ViolenceDetectionPayload | undefined;
   isAbnormal?: boolean | undefined;
 }
 
@@ -43,12 +40,12 @@ export function LiveVideoPlayer({
     onlySubscribed: true,
   });
 
-  const [cameraEvents, setCameraEvents] = useState<Record<string, CameraEventData>>({});
+  const [cameraEvents, setCameraEvents] = useState<Record<string, ViolenceDetectionPayload>>({});
 
   useDataChannel('violence_detection', (message) => {
     try {
       const str = new TextDecoder().decode(message.payload);
-      const data = JSON.parse(str) as CameraEventData;
+      const data = JSON.parse(str) as ViolenceDetectionPayload;
       if (data.camera_id) {
         setCameraEvents((prev) => ({ ...prev, [data.camera_id]: data }));
       }
@@ -77,7 +74,9 @@ export function LiveVideoPlayer({
           {trackList.map((track, id) => {
             const eventData = track.id ? cameraEvents[track.id] : undefined;
             const isAbnormal =
-              eventData && eventData.label !== 'normal_event' && eventData.label !== 'Analyzing';
+              eventData?.events?.some(
+                (e) => e.label !== 'normal_event' && e.label !== 'Analyzing'
+              ) || false;
 
             return (
               <div
@@ -92,6 +91,8 @@ export function LiveVideoPlayer({
                   trackRef={track.trackRef}
                   eventData={eventData}
                   isAbnormal={isAbnormal}
+                  show_skeleton={track.show_skeleton}
+                  show_box={track.show_box}
                 />
               </div>
             );
@@ -118,12 +119,15 @@ function mapPageTracks(
   const newTrack: ITrackList[] = [];
 
   for (let i = 0; i < maxTrack; i++) {
+    const camera = content.cameras[i];
     newTrack.push({
-      id: content.cameras[i].id || null,
-      name: content.cameras[i].name,
+      id: camera?.id || null,
+      name: camera?.name || '',
+      show_skeleton: camera?.show_skeleton ?? true,
+      show_box: camera?.show_box ?? true,
       trackRef: tracks.find((track) => {
         const trackName = 'publication' in track ? track.publication?.trackName : undefined;
-        return trackName === `track_${content.cameras[i].id || ''}`;
+        return trackName === `track_${camera?.id || ''}`;
       }) as TrackReference | undefined,
     });
   }
@@ -167,7 +171,15 @@ function VideoPlayerError({
   );
 }
 
-function VideoPlayer({ id, name, trackRef, isAbnormal, eventData }: IVideoPlayer) {
+function VideoPlayer({
+  id,
+  name,
+  trackRef,
+  isAbnormal,
+  eventData,
+  show_skeleton,
+  show_box,
+}: IVideoPlayer) {
   if (!id) {
     return <VideoPlayerError type="empty" />;
   }
@@ -188,29 +200,38 @@ function VideoPlayer({ id, name, trackRef, isAbnormal, eventData }: IVideoPlayer
         trackRef={trackRef as TrackReference | undefined}
         className="h-full w-full object-contain"
       />
+      <SkeletonOverlay eventData={eventData} showSkeleton={show_skeleton} showBox={show_box} />
 
       <div
         className={cn(
-          'absolute inset-0 z-30 ring-inset transition-all duration-150',
+          'pointer-events-none absolute inset-0 z-30 ring-inset transition-all duration-150',
           isAbnormal ? 'ring-4 ring-red-500' : 'ring-0 ring-teal-800 hover:ring-4'
         )}
       />
       {eventData && (
         <>
-          <Text
-            type="btn"
-            className={cn(
-              'absolute bottom-0 left-0 z-20 rounded-tr-2xl bg-black/50 px-3 py-3 transition-all duration-150',
-              isAbnormal ? 'font-bold text-red-500' : 'text-white'
-            )}
-          >
-            {eventData.label} ({(eventData.confidence * 100).toFixed(1)}%)
-          </Text>
+          {eventData.events && eventData.events.length > 0 && (
+            <Text
+              type="btn"
+              className={cn(
+                'absolute bottom-0 left-0 z-40 rounded-tr-2xl bg-black/50 px-3 py-3 transition-all duration-150',
+                isAbnormal ? 'font-bold text-red-500' : 'text-white'
+              )}
+            >
+              {(() => {
+                const abnormal = eventData.events.find(
+                  (e) => e.label !== 'normal_event' && e.label !== 'Analyzing'
+                );
+                const displayEvent = abnormal || eventData.events[0];
+                return `${displayEvent.label} (${(displayEvent.confidence * 100).toFixed(1)}%)`;
+              })()}
+            </Text>
+          )}
 
           <Text
             type="btn"
             className={cn(
-              'absolute right-0 bottom-0 z-20 rounded-tl-2xl bg-black/50 px-3 py-3',
+              'absolute right-0 bottom-0 z-40 rounded-tl-2xl bg-black/50 px-3 py-3',
               'text-white'
             )}
           >

@@ -3,10 +3,16 @@ export interface ILayoutJson {
   cameras: {
     id: string;
     name: string;
+    show_skeleton: boolean;
+    show_box: boolean;
   }[];
 }
 
 export interface IDatabaseLayoutJson {
   dimension: number[];
-  camera_ids: string[];
+  cameras: {
+    id: string;
+    show_skeleton: boolean;
+    show_box: boolean;
+  }[];
 }

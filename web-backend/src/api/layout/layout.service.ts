@@ -30,6 +30,8 @@ export abstract class LayoutService {
             cameras: cameras.map(camera => ({
               id: camera.id,
               name: camera.name,
+              show_skeleton: true,
+              show_box: true,
             })),
           } as ILayoutJson,
         },
@@ -58,8 +60,9 @@ export abstract class LayoutService {
       ...new Set(
         layout.flatMap(
           item =>
-            (item.layout_detail?.layout_json as unknown as IDatabaseLayoutJson)
-              .camera_ids,
+            (
+              item.layout_detail?.layout_json as unknown as IDatabaseLayoutJson
+            ).cameras.map(camera => camera.id) ?? [],
         ),
       ),
     ];
@@ -95,11 +98,13 @@ export abstract class LayoutService {
         ).dimension,
         cameras: (
           item.layout_detail?.layout_json as unknown as IDatabaseLayoutJson
-        ).camera_ids.map(camera_id => ({
-          id: camera_id,
+        ).cameras.map(camera => ({
+          id: camera.id,
           name:
-            cameras.find(camera => camera?.id === camera_id)?.name ||
-            'Unknown Camera',
+            cameras.find(databaseCamera => databaseCamera?.id === camera.id)
+              ?.name || 'Unknown Camera',
+          show_skeleton: camera.show_skeleton,
+          show_box: camera.show_box,
         })),
       },
     }));

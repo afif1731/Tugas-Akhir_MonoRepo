@@ -34,7 +34,13 @@ export const layoutSeed = async () => {
 
       const layoutJson: IDatabaseLayoutJson = {
         dimension: JSON.parse(data.layout_dimension) as number[],
-        camera_ids: JSON.parse(data.camera_id_list) as string[],
+        cameras: (JSON.parse(data.camera_id_list) as string[]).map(
+          (camera_id, index) => ({
+            id: camera_id,
+            show_skeleton: index % 2 == 1,
+            show_box: index % 2 == 1,
+          }),
+        ),
       };
 
       const layoutPage = await prisma.cctvLayoutPages.upsert({

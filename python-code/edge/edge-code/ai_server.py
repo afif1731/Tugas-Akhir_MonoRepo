@@ -22,29 +22,19 @@ logger = logging.getLogger(__name__)
 
 def load_interpreter(model_path, model_name):
     logger.info(f"Loading {model_name}...")
-    try:
-        from pycoral.utils import edgetpu
-        interpreter = edgetpu.make_interpreter(model_path)
-        interpreter.allocate_tensors()
-        logger.info(f"Successfully loaded {model_name} with PyCoral (Edge TPU).")
-        return interpreter
-    except Exception as e:
-        logger.warning(f"PyCoral load failed for {model_name}: {e}. Trying tflite_runtime load_delegate...")
-    
+
     try:
         delegate_lib = os.getenv('EDGETPU_SHARED_LIB', 'libedgetpu.so.1')
         delegate = tflite.load_delegate(delegate_lib)
         interpreter = tflite.Interpreter(model_path=model_path, experimental_delegates=[delegate], num_threads=4)
         interpreter.allocate_tensors()
         
-        # Referensi ganda agar tidak terkena GC
         interpreter._delegate_ref = delegate 
         logger.info(f"Successfully loaded {model_name} with tflite_runtime delegate (Edge TPU).")
         return interpreter
     except Exception as e:
         logger.warning(f"Edge TPU delegate load failed for {model_name}: {e}. Falling back to CPU...")
-    
-    # CPU Fallback
+
     interpreter = tflite.Interpreter(model_path=model_path, num_threads=4)
     interpreter.allocate_tensors()
     logger.info(f"Successfully loaded {model_name} on CPU.")

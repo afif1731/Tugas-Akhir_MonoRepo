@@ -7,6 +7,8 @@ export interface ILayoutDetail {
   cameras: {
     id: string;
     name: string;
+    show_skeleton?: boolean;
+    show_box?: boolean;
   }[];
 }
 
