@@ -1,4 +1,11 @@
 import os
+# --- C++ SEGFAULT DEBUGGING ---
+os.environ['GLOG_v'] = '2'
+os.environ['GLOG_minloglevel'] = '0'
+import faulthandler
+faulthandler.enable()
+# ------------------------------
+
 import json
 import asyncio
 import logging

@@ -23,26 +23,36 @@ def get_edgetpu_delegate():
     if _shared_edgetpu_delegate is None:
         delegate_lib = os.getenv('EDGETPU_SHARED_LIB', 'libedgetpu.so.1')
         try:
+            logger.info(f"C-LOG: Executing tflite.load_delegate('{delegate_lib}')")
             _shared_edgetpu_delegate = tflite.load_delegate(delegate_lib)
+            logger.info("C-LOG: tflite.load_delegate SUCCESS")
         except Exception as e:
             logger.warning(f"Failed to load Edge TPU delegate globally: {e}")
             _shared_edgetpu_delegate = "FAILED"
     return _shared_edgetpu_delegate
 
 def load_interpreter(model_path, camera_id, model_name):
+    logger.info(f"C-LOG: Starting model load for {model_name}...")
     delegate = get_edgetpu_delegate()
     
+    logger.info("C-LOG: Reading model file to RAM...")
     # Menghindari mmap Segfault dengan membaca model langsung ke RAM
     with open(model_path, 'rb') as f:
         model_data = f.read()
+    logger.info("C-LOG: Reading model file SUCCESS")
     
     if delegate is not None and delegate != "FAILED":
         try:
+            logger.info("C-LOG: Executing tflite.Interpreter(model_content, delegate)")
             interpreter = tflite.Interpreter(
                 model_content=model_data,
                 experimental_delegates=[delegate]
             )
+            logger.info("C-LOG: tflite.Interpreter SUCCESS")
+            
+            logger.info("C-LOG: Executing interpreter.allocate_tensors()")
             interpreter.allocate_tensors()
+            logger.info("C-LOG: interpreter.allocate_tensors() SUCCESS")
             
             # Referensi ganda agar aman dari GC
             interpreter._delegate_ref = delegate 
@@ -55,7 +65,9 @@ def load_interpreter(model_path, camera_id, model_name):
             
     # Fallback to CPU
     try:
+        logger.info("C-LOG: Executing tflite.Interpreter (CPU Fallback)")
         interpreter = tflite.Interpreter(model_content=model_data)
+        logger.info("C-LOG: Executing interpreter.allocate_tensors() (CPU Fallback)")
         interpreter.allocate_tensors()
         interpreter._model_data_ref = model_data
         
