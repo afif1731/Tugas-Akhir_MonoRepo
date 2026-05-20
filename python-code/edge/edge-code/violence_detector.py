@@ -35,17 +35,11 @@ def load_interpreter(model_path, camera_id, model_name):
     logger.info(f"C-LOG: Starting model load for {model_name}...")
     delegate = get_edgetpu_delegate()
     
-    logger.info("C-LOG: Reading model file to RAM...")
-    # Menghindari mmap Segfault dengan membaca model langsung ke RAM
-    with open(model_path, 'rb') as f:
-        model_data = f.read()
-    logger.info("C-LOG: Reading model file SUCCESS")
-    
     if delegate is not None and delegate != "FAILED":
         try:
-            logger.info("C-LOG: Executing tflite.Interpreter(model_content, delegate)")
+            logger.info("C-LOG: Executing tflite.Interpreter(model_path, delegate)")
             interpreter = tflite.Interpreter(
-                model_content=model_data,
+                model_path=model_path,
                 experimental_delegates=[delegate]
             )
             logger.info("C-LOG: tflite.Interpreter SUCCESS")
@@ -54,9 +48,8 @@ def load_interpreter(model_path, camera_id, model_name):
             interpreter.allocate_tensors()
             logger.info("C-LOG: interpreter.allocate_tensors() SUCCESS")
             
-            # Referensi ganda agar aman dari GC
+            # Referensi tunggal delegate agar aman dari GC
             interpreter._delegate_ref = delegate 
-            interpreter._model_data_ref = model_data 
             
             logger.info(f"Successfully loaded {model_name} with Edge TPU delegate for camera {camera_id}.")
             return interpreter
@@ -66,10 +59,9 @@ def load_interpreter(model_path, camera_id, model_name):
     # Fallback to CPU
     try:
         logger.info("C-LOG: Executing tflite.Interpreter (CPU Fallback)")
-        interpreter = tflite.Interpreter(model_content=model_data)
+        interpreter = tflite.Interpreter(model_path=model_path)
         logger.info("C-LOG: Executing interpreter.allocate_tensors() (CPU Fallback)")
         interpreter.allocate_tensors()
-        interpreter._model_data_ref = model_data
         
         logger.info(f"Successfully loaded {model_name} on CPU for camera {camera_id}.")
         return interpreter
