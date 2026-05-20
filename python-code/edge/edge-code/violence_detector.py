@@ -37,20 +37,20 @@ async def run_camera_process(camera, room, config, backend_url):
     gcn_path = os.path.join(base_dir, "_model", gcn_file)
 
     logger.info(f"Loading AI Model for camera {camera_id} (Edge TPU)...")
+    logger.info(f"Loading the YOLO Pose Model {yolo_file}")
     try:
         yolo_interpreter = tflite.Interpreter(
-            model_path=yolo_path,
-            experimental_delegates=[tflite.load_delegate('libedgetpu.so.1.0')]
+            model_path=yolo_path
         )
         yolo_interpreter.allocate_tensors()
     except Exception as e:
         logger.error(f"Failed to load YOLO Edge TPU delegate for camera {camera_id}: {e}")
         return
 
+    logger.info(f"Loading the GCN Model {gcn_file}")
     try:
         gcn_interpreter = tflite.Interpreter(
-            model_path=gcn_path,
-            experimental_delegates=[tflite.load_delegate('libedgetpu.so.1.0')]
+            model_path=gcn_path
         )
         gcn_interpreter.allocate_tensors()
     except Exception as e:
@@ -129,7 +129,7 @@ async def run_camera_process(camera, room, config, backend_url):
                     "box": person["box"],
                     "keypoints": person["keypoints"]
                 })
-                
+            
             cluster_buffers[object_id].append(frame_pose_data)
             
             # --- PROSES GCN-LSTM ---
