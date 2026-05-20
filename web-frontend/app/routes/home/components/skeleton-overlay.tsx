@@ -43,7 +43,7 @@ export function SkeletonOverlay({
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    if (!eventData || !eventData.events) return;
+    if (!eventData || !eventData.events || !Array.isArray(eventData.events)) return;
 
     eventData.events.forEach((event) => {
       // Determine color based on label
@@ -55,9 +55,11 @@ export function SkeletonOverlay({
       let maxX = Number.NEGATIVE_INFINITY;
       let maxY = Number.NEGATIVE_INFINITY;
 
+      if (!event.skeletons || !Array.isArray(event.skeletons)) return;
+
       event.skeletons.forEach((skeleton) => {
         // Calculate Group Box
-        if (skeleton.box) {
+        if (skeleton.box && Array.isArray(skeleton.box) && skeleton.box.length === 4) {
           const [x, y, w, h] = skeleton.box;
           if (x < minX) minX = x;
           if (y < minY) minY = y;
@@ -66,9 +68,10 @@ export function SkeletonOverlay({
         }
 
         // Draw Skeleton
-        if (showSkeleton && skeleton.keypoints) {
+        if (showSkeleton && skeleton.keypoints && Array.isArray(skeleton.keypoints)) {
           // Draw points
           skeleton.keypoints.forEach((kp) => {
+            if (!kp || kp.length < 3) return;
             const [x, y, conf] = kp;
             if (conf > 0.5) {
               ctx.beginPath();

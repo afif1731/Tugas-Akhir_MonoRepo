@@ -46,6 +46,7 @@ export function LiveVideoPlayer({
     try {
       const str = new TextDecoder().decode(message.payload);
       const data = JSON.parse(str) as ViolenceDetectionPayload;
+      console.log(data);
       if (data.camera_id) {
         setCameraEvents((prev) => ({ ...prev, [data.camera_id]: data }));
       }
