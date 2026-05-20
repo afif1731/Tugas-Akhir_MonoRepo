@@ -32,13 +32,22 @@ def get_edgetpu_delegate():
 def load_interpreter(model_path, camera_id, model_name):
     delegate = get_edgetpu_delegate()
     
+    # Menghindari mmap Segfault dengan membaca model langsung ke RAM
+    with open(model_path, 'rb') as f:
+        model_data = f.read()
+    
     if delegate is not None and delegate != "FAILED":
         try:
             interpreter = tflite.Interpreter(
-                model_path=model_path,
+                model_content=model_data,
                 experimental_delegates=[delegate]
             )
             interpreter.allocate_tensors()
+            
+            # Referensi ganda agar aman dari GC
+            interpreter._delegate_ref = delegate 
+            interpreter._model_data_ref = model_data 
+            
             logger.info(f"Successfully loaded {model_name} with Edge TPU delegate for camera {camera_id}.")
             return interpreter
         except Exception as e:
@@ -46,8 +55,10 @@ def load_interpreter(model_path, camera_id, model_name):
             
     # Fallback to CPU
     try:
-        interpreter = tflite.Interpreter(model_path=model_path)
+        interpreter = tflite.Interpreter(model_content=model_data)
         interpreter.allocate_tensors()
+        interpreter._model_data_ref = model_data
+        
         logger.info(f"Successfully loaded {model_name} on CPU for camera {camera_id}.")
         return interpreter
     except Exception as cpu_err:
