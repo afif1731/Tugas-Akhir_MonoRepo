@@ -15,10 +15,15 @@ def yolo_pose_extraction(yolo_interpreter: tflite.Interpreter, frame: np.ndarray
     output_details = yolo_interpreter.get_output_details()[0]
     
     input_shape = input_details['shape']
+
+    is_space_to_depth = False
     if len(input_shape) == 4:
-        if input_shape[1] == 3:
+        if input_shape[-1] == 12: # Deteksi model EdgeTPU dengan Space-to-Depth 2x2
+            input_height, input_width = input_shape[1] * 2, input_shape[2] * 2
+            is_space_to_depth = True
+        elif input_shape[1] == 3: # NCHW
             input_height, input_width = input_shape[2], input_shape[3]
-        else:
+        else: # NHWC standar
             input_height, input_width = input_shape[1], input_shape[2]
     else:
         input_height, input_width = 640, 640
@@ -56,8 +61,15 @@ def yolo_pose_extraction(yolo_interpreter: tflite.Interpreter, frame: np.ndarray
         input_data = (img_rgb / 255.0).astype(np.float32)
         
     input_data = np.expand_dims(input_data, axis=0)
-    if len(input_shape) == 4 and input_shape[1] == 3:
-            input_data = np.transpose(input_data, (0, 3, 1, 2))
+    
+    if is_space_to_depth:
+        b, h, w, c = input_data.shape
+        # Mengubah dari (1, 640, 640, 3) menjadi (1, 320, 320, 12)
+        input_data = input_data.reshape(b, h // 2, 2, w // 2, 2, c)
+        input_data = input_data.transpose(0, 1, 3, 2, 4, 5)
+        input_data = input_data.reshape(b, h // 2, w // 2, c * 4)
+    elif len(input_shape) == 4 and input_shape[1] == 3:
+        input_data = np.transpose(input_data, (0, 3, 1, 2))
             
     yolo_interpreter.set_tensor(input_details['index'], input_data)
     
