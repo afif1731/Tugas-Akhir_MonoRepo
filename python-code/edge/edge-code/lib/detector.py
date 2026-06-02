@@ -26,7 +26,7 @@ def yolo_pose_extraction(yolo_interpreter: tflite.Interpreter, frame: np.ndarray
         else: # NHWC standar
             input_height, input_width = input_shape[1], input_shape[2]
     else:
-        input_height, input_width = 640, 640
+        input_height, input_width = 512, 512
         
     shape = frame.shape[:2]
     r = min(input_height / shape[0], input_width / shape[1])
@@ -64,7 +64,7 @@ def yolo_pose_extraction(yolo_interpreter: tflite.Interpreter, frame: np.ndarray
     
     if is_space_to_depth:
         b, h, w, c = input_data.shape
-        # Mengubah dari (1, 640, 640, 3) menjadi (1, 320, 320, 12)
+        # Mengubah dari (1, 512, 512, 3) menjadi (1, 256, 256, 12)
         input_data = input_data.reshape(b, h // 2, 2, w // 2, 2, c)
         input_data = input_data.transpose(0, 1, 3, 2, 4, 5)
         input_data = input_data.reshape(b, h // 2, w // 2, c * 4)
@@ -84,7 +84,7 @@ def yolo_pose_extraction(yolo_interpreter: tflite.Interpreter, frame: np.ndarray
         quantized_thresh = int(round((conf_thresh / out_scale) + out_zp))
         
         if len(output_data.shape) == 3 and output_data.shape[1] == 56:
-            preds_int8 = output_data[0] # shape (56, 8400)
+            preds_int8 = output_data[0] # shape (56, 5376)
             scores_int8 = preds_int8[4, :]
             valid_idx = scores_int8 > quantized_thresh
             
@@ -155,7 +155,7 @@ def yolo_pose_extraction(yolo_interpreter: tflite.Interpreter, frame: np.ndarray
         sorted_indices = keep
         
         for idx in sorted_indices:
-            kpts = preds[idx, 5:].reshape((17, 3))
+            kpts = preds[idx, 5:56].reshape((17, 3))
             kpts[:, 0] = (kpts[:, 0] * input_width - dw) / r
             kpts[:, 1] = (kpts[:, 1] * input_height - dh) / r
             
