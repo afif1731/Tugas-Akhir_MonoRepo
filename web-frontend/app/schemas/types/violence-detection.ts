@@ -1,3 +1,28 @@
+import * as v from 'valibot';
+
+export const ViolenceEventLabelMap = {
+  normal_event: 'Normal Event',
+  assault: 'Assault',
+  fighting: 'Fighting',
+  robbery: 'Robbery',
+  shooting: 'Shooting',
+  analyzing: 'Analyzing',
+  Analyzing: 'Analyzing',
+} satisfies Record<string, string>;
+
+export const ViolenceEventLabel = {
+  normal_event: 'normal_event',
+  assault: 'assault',
+  fighting: 'fighting',
+  robbery: 'robbery',
+  shooting: 'shooting',
+  analyzing: 'analyzing',
+} as const;
+
+const violenceEventLabelSchema = v.enum(ViolenceEventLabel);
+
+export type IViolenceEventLabel = v.InferInput<typeof violenceEventLabelSchema>;
+
 export interface ViolenceDetectionPayload {
   camera_id: string;
   fps: number;
@@ -6,7 +31,7 @@ export interface ViolenceDetectionPayload {
 
 export interface ViolenceEvent {
   group_id: number;
-  label: string;
+  label: IViolenceEventLabel;
   confidence: number;
   skeletons: AbsoluteSkeleton[];
 }

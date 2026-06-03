@@ -39,8 +39,6 @@ source ~/.bashrc
 ```shell
 uv venv --python 3.9.25
 
-uv pip install --extra-index-url https://google-coral.github.io/py-repo/ pycoral~=2.0
-
 uv pip install -r requirements.edge.txt
 ```
 

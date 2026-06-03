@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 
-import type { ViolenceDetectionPayload } from '@/schemas/types';
+import { type ViolenceDetectionPayload, ViolenceEventLabelMap } from '@/schemas/types';
+
+import { abnormalCheck } from '../utils';
 
 interface SkeletonOverlayProps {
   eventData?: ViolenceDetectionPayload;
@@ -47,7 +49,7 @@ export function SkeletonOverlay({
 
     eventData.events.forEach((event) => {
       // Determine color based on label
-      const isAbnormal = event.label !== 'normal_event' && event.label !== 'Analyzing';
+      const isAbnormal = abnormalCheck(event);
       const color = isAbnormal ? '#ef4444' : '#22c55e'; // red-500 or green-500
 
       let minX = Number.POSITIVE_INFINITY;
@@ -113,7 +115,7 @@ export function SkeletonOverlay({
         // Optional: draw label and confidence above the box
         ctx.fillStyle = color;
         ctx.font = 'bold 14px sans-serif';
-        const text = `${event.label} (${(event.confidence * 100).toFixed(1)}%)`;
+        const text = `${ViolenceEventLabelMap[event.label]} (${(event.confidence * 100).toFixed(1)}%)`;
 
         // Add a background for the text for better visibility
         const textWidth = ctx.measureText(text).width;

@@ -143,7 +143,7 @@ def handle_client(conn, addr):
             for cluster_idx, object_id in tracked.items():
                 if object_id not in cluster_buffers:
                     cluster_buffers[object_id] = deque(maxlen=t_frames)
-                    cluster_labels[object_id] = {"label": "Analyzing", "conf": 0.0}
+                    cluster_labels[object_id] = {"label": "analyzing", "conf": 0.0}
                     
                 cluster_people = clusters[cluster_idx]
                 num_people = min(len(cluster_people), m_people)

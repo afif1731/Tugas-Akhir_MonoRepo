@@ -12,8 +12,13 @@ import { cn } from '@/lib/utils';
 
 import { Text } from '@/components/helper/text';
 
-import type { ILayoutDetail, ViolenceDetectionPayload } from '@/schemas/types';
+import {
+  type ILayoutDetail,
+  type ViolenceDetectionPayload,
+  ViolenceEventLabelMap,
+} from '@/schemas/types';
 
+import { abnormalCheck } from '../utils';
 import { SkeletonOverlay } from './skeleton-overlay';
 
 interface ITrackList {
@@ -46,7 +51,7 @@ export function LiveVideoPlayer({
     try {
       const str = new TextDecoder().decode(message.payload);
       const data = JSON.parse(str) as ViolenceDetectionPayload;
-      console.log(data);
+
       if (data.camera_id) {
         setCameraEvents((prev) => ({ ...prev, [data.camera_id]: data }));
       }
@@ -74,10 +79,7 @@ export function LiveVideoPlayer({
         >
           {trackList.map((track, id) => {
             const eventData = track.id ? cameraEvents[track.id] : undefined;
-            const isAbnormal =
-              eventData?.events?.some(
-                (e) => e.label !== 'normal_event' && e.label !== 'Analyzing'
-              ) || false;
+            const isAbnormal = eventData?.events?.some((e) => abnormalCheck(e)) || false;
 
             return (
               <div
@@ -220,11 +222,9 @@ function VideoPlayer({
               )}
             >
               {(() => {
-                const abnormal = eventData.events.find(
-                  (e) => e.label !== 'normal_event' && e.label !== 'Analyzing'
-                );
+                const abnormal = eventData.events.find((e) => abnormalCheck(e));
                 const displayEvent = abnormal || eventData.events[0];
-                return `${displayEvent.label} (${(displayEvent.confidence * 100).toFixed(1)}%)`;
+                return `${ViolenceEventLabelMap[displayEvent.label]} (${(displayEvent.confidence * 100).toFixed(1)}%)`;
               })()}
             </Text>
           )}

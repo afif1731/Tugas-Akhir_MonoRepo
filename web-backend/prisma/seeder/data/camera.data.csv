@@ -1,5 +1,5 @@
 id,edge_device_id,name,status,treshold,source_type,source
 019cf0ea-cfe6-7d61-bd35-ee71fbbf8c2d,019cf0e8-c7c5-7ad1-b796-dcb62eb5ec19,"Webcam Test",OFFLINE,0,LOCAL,"0"
-019e0d16-6faf-798b-94e2-48a3090347af,019cf0e8-c7c5-7ad1-b796-dcb62eb5ec19,"Kolam TW2",ONLINE,0,STATIC_FILE,"fighting_sample_1.mp4"
+019e0d16-6faf-798b-94e2-48a3090347af,019cf0e8-c7c5-7ad1-b796-dcb62eb5ec19,"Kolam TW2",ONLINE,0,STATIC_FILE,"fighting_sample_2.mp4"
 019cf0ea-cfe6-7e24-a667-074efb8e490a,019cf0e8-c7c5-76d8-82f0-2841f1a5b3d4,"CCTV Test 1",OFFLINE,0,STATIC_FILE,"normal_sample_1.mp4"
-019e19c1-8df7-73f3-b5b1-8a88140d9e7f,019cf0e8-c7c5-76d8-82f0-2841f1a5b3d4,"ITS Mart",ONLINE,0,STATIC_FILE,"robbery_sample_1.mp4"
+019e19c1-8df7-73f3-b5b1-8a88140d9e7f,019cf0e8-c7c5-76d8-82f0-2841f1a5b3d4,"ITS Mart",ONLINE,0,STATIC_FILE,"shooting_sample_1.mp4"
