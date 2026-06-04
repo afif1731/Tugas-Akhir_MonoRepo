@@ -215,6 +215,8 @@ def gcn_classification(CLASSES: list, gcn_interpreter: tflite.Interpreter, pose_
         current_label = CLASSES[class_idx]
         current_conf = float(probs[class_idx])
         
-        return current_label, current_conf
+        all_conf = {CLASSES[i]: float(probs[i]) for i in range(len(CLASSES))}
+        
+        return current_label, current_conf, all_conf
     
-    return None, None
+    return None, None, None

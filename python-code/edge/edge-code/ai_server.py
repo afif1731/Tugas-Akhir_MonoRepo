@@ -223,7 +223,7 @@ def handle_client(conn, addr):
                 cluster_buffers[object_id].append(frame_pose_data)
                 
                 # --- PROSES GCN-LSTM ---
-                new_label, new_conf = gcn_classification(
+                new_label, new_conf, all_conf = gcn_classification(
                     classes,
                     gcn_interpreter,
                     cluster_buffers[object_id],
@@ -234,6 +234,9 @@ def handle_client(conn, addr):
                 if new_label is not None and new_conf is not None:
                     cluster_labels[object_id]["label"] = new_label
                     cluster_labels[object_id]["conf"] = new_conf
+                    
+                    log_str = ", ".join([f"{k}: {v:.3f}" for k, v in all_conf.items()])
+                    logger.info(f"[{camera_id}] GCN Output Group {object_id} -> {log_str}")
                     
                 current_label = cluster_labels[object_id]["label"]
                 current_conf = cluster_labels[object_id]["conf"]
