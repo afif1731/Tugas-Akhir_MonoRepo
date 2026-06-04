@@ -3,7 +3,7 @@ import asyncio
 import logging
 from livekit.rtc import DataPacket
 
-from service.camera_service import CameraService
+from .service.camera_service import CameraService
 from lib.lib_app.livekit_message_publish import publish_device_status
 
 logger = logging.getLogger(__name__)

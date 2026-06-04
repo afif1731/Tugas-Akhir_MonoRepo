@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from violence_detector import run_camera_process
+from lib.lib_app.camera_process import run_camera_process
 
 logger = logging.getLogger(__name__)
 
