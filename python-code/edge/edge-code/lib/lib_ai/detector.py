@@ -111,10 +111,10 @@ def yolo_pose_extraction(yolo_interpreter: tflite.Interpreter, frame: np.ndarray
         scores = preds[:, 4]
     
     boxes = preds[:, :4]
-    x = boxes[:, 0] * input_width
-    y = boxes[:, 1] * input_height
-    w = boxes[:, 2] * input_width
-    h = boxes[:, 3] * input_height
+    x = boxes[:, 0]
+    y = boxes[:, 1]
+    w = boxes[:, 2]
+    h = boxes[:, 3]
     
     x = (x - dw) / r
     y = (y - dh) / r
@@ -156,8 +156,8 @@ def yolo_pose_extraction(yolo_interpreter: tflite.Interpreter, frame: np.ndarray
         
         for idx in sorted_indices:
             kpts = preds[idx, 5:56].reshape((17, 3))
-            kpts[:, 0] = (kpts[:, 0] * input_width - dw) / r
-            kpts[:, 1] = (kpts[:, 1] * input_height - dh) / r
+            kpts[:, 0] = (kpts[:, 0] - dw) / r
+            kpts[:, 1] = (kpts[:, 1] - dh) / r
             
             hip_l, hip_r = kpts[11], kpts[12]
             
@@ -186,7 +186,7 @@ def yolo_pose_extraction(yolo_interpreter: tflite.Interpreter, frame: np.ndarray
     return people
 
 def gcn_classification(CLASSES: list, gcn_interpreter: tflite.Interpreter, pose_buffer: deque, frame_count: int, T: int):
-    if len(pose_buffer) == T and frame_count % 5 == 0:
+    if len(pose_buffer) == T and frame_count % 20 == 0:
         tensor_data = np.stack(pose_buffer, axis=1) # shape: (3, 100, 17, 3)
         input_tensor_float = np.expand_dims(tensor_data, axis=0).astype(np.float32) # shape: (1, 3, 100, 17, 3)
 

@@ -2,23 +2,25 @@ import os
 # --- C++ SEGFAULT DEBUGGING ---
 os.environ['GLOG_v'] = '2'
 os.environ['GLOG_minloglevel'] = '0'
+
 import faulthandler
 faulthandler.enable()
 # ------------------------------
 
-import json
 import asyncio
 import logging
 import signal
 from uuid6 import uuid7
 from dotenv import load_dotenv
-from livekit.rtc import Room
 from livekit import rtc
-from lib.livekit_message_publish import device_status_loop
-from lib.livekit_access_token import fetch_access_token, token_renewal_loop
-from lib.get_camera import fetch_cameras
-from consumer.routes import route_backend_request
-from violence_detector import run_camera_process
+from livekit.rtc import Room
+
+from lib.lib_app.get_camera import fetch_cameras
+from lib.lib_app.camera_process import run_camera_process
+from lib.lib_app.livekit_message_publish import device_status_loop
+from lib.lib_app.livekit_access_token import fetch_access_token, token_renewal_loop
+
+from consumer.routes import device_on_data_received
 
 logging.basicConfig(
     level=logging.INFO,
@@ -32,16 +34,15 @@ load_dotenv()
 LIVEKIT_URL = os.getenv('LIVEKIT_URL', 'ws://127.0.0.1:7880')
 BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:4000')
 
-DEVICE_SECRET = os.getenv('LIVEKIT_DEVICE_SECRET', 'supersecretvalue')
+YOLO_FILE = os.getenv('YOLO_FILE', 'yolov8n-pose_full_integer_quant_edgetpu.tflite')
+GCN_FILE = os.getenv('GCN_FILE', 'GCN_LSTM_best_int8_edgetpu.tflite')
 
+DEVICE_SECRET = os.getenv('LIVEKIT_DEVICE_SECRET', 'supersecretvalue')
 DEVICE_ID = os.getenv('DEVICE_ID', 'not_set')
 
 if DEVICE_ID == 'not_set':
     logger.warning("Device ID not found, generating a new DEVICE_ID (Device ID will change every time the application restarts)")
     DEVICE_ID = str(uuid7())
-
-YOLO_FILE = os.getenv('YOLO_FILE', 'yolov8n-pose_full_integer_quant_edgetpu.tflite')
-GCN_FILE = os.getenv('GCN_FILE', 'GCN_LSTM_best_int8_edgetpu.tflite')
 
 CAMERAS = []
 
@@ -108,6 +109,7 @@ async def main():
     status_task = asyncio.create_task(device_status_loop(room, DEVICE_ID))
 
     logger.info("Fetching camera configurations...")
+    
     fetched_cameras = None
     while fetched_cameras is None and not shutdown_event.is_set():
         fetched_cameras = await fetch_cameras(
@@ -115,13 +117,14 @@ async def main():
             device_secret=DEVICE_SECRET,
             backend_url=BACKEND_URL
         )
+
         if fetched_cameras is None:
             logger.error("Failed to fetch camera configurations. Retrying in 10 seconds...")
             try:
                 await asyncio.wait_for(shutdown_event.wait(), timeout=10.0)
             except asyncio.TimeoutError:
                 pass
-                
+    
     if shutdown_event.is_set():
         await room.disconnect()
         return
@@ -139,22 +142,15 @@ async def main():
 
     @room.on("data_received")
     def on_data_received(dp: rtc.DataPacket):
-        topic = dp.topic if hasattr(dp, 'topic') else None
-        data = dp.data if hasattr(dp, 'data') else None
-        
-        if topic == f'backend_request_{DEVICE_ID}' and data is not None:
-            try:
-                if isinstance(data, bytes):
-                    payload_str = data.decode('utf-8')
-                else:
-                    payload_str = str(data)
-                payload = json.loads(payload_str)
-                asyncio.create_task(route_backend_request(payload, app_context))
-            except Exception as e:
-                logger.error(f"Failed to process backend_request data: {e}")
+        device_on_data_received(
+            dp=dp,
+            device_id=DEVICE_ID,
+            app_context=app_context
+        )
 
     for camera in CAMERAS:
         logger.info(f"Setting up camera process for ID: {camera['id']}")
+
         task = asyncio.create_task(
             run_camera_process(
                 camera=camera,

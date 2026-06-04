@@ -9,11 +9,10 @@ import logging
 import numpy as np
 
 from livekit import rtc
-from lib.livekit_message_publish import publish_violence_detection
+from lib.utils import validate_file
+from lib.lib_app.livekit_message_publish import publish_violence_detection
 
 logger = logging.getLogger(__name__)
-
-from lib.utils import validate_file
 
 def recv_exact(sock, n):
     data = bytearray()
@@ -131,7 +130,7 @@ async def run_camera_process(camera, room, config, backend_url):
             
             if frame is not None:
                 # Convert BGR ke RGB untuk WebRTC
-                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) # pyright: ignore[reportArgumentType, reportCallIssue]
+                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 
                 lk_frame = rtc.VideoFrame(
                     width=640, 

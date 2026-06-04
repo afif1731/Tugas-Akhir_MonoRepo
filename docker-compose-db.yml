@@ -41,8 +41,17 @@ services:
       - LIVEKIT_KEYS=${LIVEKIT_KEYS}
       - LIVEKIT_RTC_NODE_IP=${LIVEKIT_NODE_IP}
       - LIVEKIT_RTC_USE_EXTERNAL_IP=${LIVEKIT_USE_EXTERNAL_IP}
+
+      # Turn Server Configuration
+      - LIVEKIT_TURN_ENABLED=${LIVEKIT_TURN_ENABLED}
+      - LIVEKIT_TURN_DOMAIN=${LIVEKIT_TURN_DOMAIN}
+      - LIVEKIT_TURN_TLS_PORT=${LIVEKIT_TURN_TLS_PORT}
+      - LIVEKIT_TURN_UDP_PORT=${LIVEKIT_TURN_UDP_PORT}
+      - LIVEKIT_TURN_CERT_FILE=${LIVEKIT_TURN_CERT_FILE}
+      - LIVEKIT_TURN_KEY_FILE=${LIVEKIT_TURN_KEY_FILE}
     volumes:
-      - ./livekit-conf/livekit.yaml:/etc/livekit.yaml
+      - ./livekit-conf/${LIVEKIT_YAML_FILE}:/etc/livekit.yaml
+      - ${LIVEKIT_LETSENCRYPT_FOLDER}:/etc/letsencrypt:ro
 
 volumes:
   postgres:

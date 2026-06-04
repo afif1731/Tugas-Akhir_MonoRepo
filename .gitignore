@@ -17,6 +17,7 @@ file-storage/
 
 # Docker
 docker/
+livekit-conf/*.custom.yaml
 
 # Env
 .env

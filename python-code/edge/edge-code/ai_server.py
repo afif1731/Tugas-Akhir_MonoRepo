@@ -10,21 +10,32 @@ import numpy as np
 from collections import deque
 import tflite_runtime.interpreter as tflite
 
-from lib.detector import yolo_pose_extraction, gcn_classification
-from lib.crowd_cluster import CentroidTracker, spatial_clustering
+from lib.lib_ai.detector import yolo_pose_extraction, gcn_classification
+from lib.lib_ai.crowd_cluster import CentroidTracker, spatial_clustering
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [AI-SERVER] [%(levelname)s] %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
+
 logger = logging.getLogger(__name__)
+
+YOLO_IMGZ = 640
+YOLO_PERSON_CONFIDENCE_THRESHOLD = 0.15
+YOLO_IOU_THRESHOLD = 0.45
+
+CENTROID_TRACKER_MAX_DISAPPEARED = 200
+CENTROID_TRACKER_MAX_DISTANCE = 300
+
+SPATIAL_CLUSTERING_MAX_DISTANCE = 200
 
 def load_interpreter(model_path, model_name):
     logger.info(f"Loading {model_name}...")
 
     try:
         delegate_lib = os.getenv('EDGETPU_SHARED_LIB', 'libedgetpu.so.1')
+
         delegate = tflite.load_delegate(delegate_lib)
         interpreter = tflite.Interpreter(model_path=model_path, experimental_delegates=[delegate], num_threads=4)
         interpreter.allocate_tensors()
@@ -100,7 +111,11 @@ def handle_client(conn, addr):
             logger.error(f"[{camera_id}] Failed to open video source: {input_source} (type: {source_type})")
             return
 
-        tracker = CentroidTracker(max_disappeared=50, max_distance=300)
+        tracker = CentroidTracker(
+            max_disappeared=CENTROID_TRACKER_MAX_DISAPPEARED,
+            max_distance=CENTROID_TRACKER_MAX_DISTANCE
+        )
+        
         cluster_buffers = {}
         cluster_labels = {}
         frame_count = 0
@@ -122,14 +137,22 @@ def handle_client(conn, addr):
                 else:
                     break
 
-            frame = cv2.resize(frame, (640, 480))
+            frame = cv2.resize(frame, (YOLO_IMGZ, YOLO_IMGZ))
             t_resize = time.time()
             
             # --- PROSES YOLO POSE ---
-            people = yolo_pose_extraction(yolo_interpreter, frame)
+            people = yolo_pose_extraction(
+                yolo_interpreter=yolo_interpreter,
+                frame=frame,
+                conf_thresh=YOLO_PERSON_CONFIDENCE_THRESHOLD,
+                iou_thresh=YOLO_IOU_THRESHOLD
+            )
             t_yolo = time.time()
             
-            clusters = spatial_clustering(people, max_distance=200)
+            clusters = spatial_clustering(
+                people=people,
+                max_distance=SPATIAL_CLUSTERING_MAX_DISTANCE
+            )
             
             cluster_centroids = []
             for cluster in clusters:
@@ -161,7 +184,13 @@ def handle_client(conn, addr):
                 cluster_buffers[object_id].append(frame_pose_data)
                 
                 # --- PROSES GCN-LSTM ---
-                new_label, new_conf = gcn_classification(classes, gcn_interpreter, cluster_buffers[object_id], frame_count, t_frames)
+                new_label, new_conf = gcn_classification(
+                    classes,
+                    gcn_interpreter,
+                    cluster_buffers[object_id],
+                    frame_count,
+                    t_frames
+                )
                 
                 if new_label is not None and new_conf is not None:
                     cluster_labels[object_id]["label"] = new_label
