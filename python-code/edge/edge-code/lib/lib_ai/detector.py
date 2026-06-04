@@ -208,11 +208,13 @@ def gcn_classification(CLASSES: list, gcn_interpreter: tflite.Interpreter, pose_
         output_tensor_quantized = gcn_interpreter.get_tensor(output_details['index'])
         out_scale, out_zp = output_details['quantization']
         
+        logger.info(f"GCN INT8 OUT: raw={output_tensor_quantized[0]}, scale={out_scale:.4f}, zp={out_zp}")
+        
         if out_scale > 0:
             probs = (output_tensor_quantized[0].astype(np.float32) - out_zp) * out_scale
         else:
             probs = output_tensor_quantized[0]
-        
+            
         class_idx = int(np.argmax(probs))
         current_label = CLASSES[class_idx]
         current_conf = float(probs[class_idx])
