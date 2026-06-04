@@ -186,7 +186,7 @@ def yolo_pose_extraction(yolo_interpreter: tflite.Interpreter, frame: np.ndarray
     return people
 
 def gcn_classification(CLASSES: list, gcn_interpreter: tflite.Interpreter, pose_buffer: deque, frame_count: int, T: int):
-    if len(pose_buffer) == T and frame_count % 20 == 0:
+    if len(pose_buffer) == T and frame_count % 5 == 0:
         tensor_data = np.stack(pose_buffer, axis=1) # shape: (3, 100, 17, 3)
         input_tensor_float = np.expand_dims(tensor_data, axis=0).astype(np.float32) # shape: (1, 3, 100, 17, 3)
 
@@ -200,6 +200,8 @@ def gcn_classification(CLASSES: list, gcn_interpreter: tflite.Interpreter, pose_
         else:
             input_tensor_quantized = input_tensor_float.astype(input_details['dtype'])
 
+        logger.info(f"GCN INT8 IN: min={np.min(input_tensor_quantized)}, max={np.max(input_tensor_quantized)}, mean={np.mean(input_tensor_quantized):.2f}, scale={input_scale:.4f}, zp={input_zp}")
+        
         gcn_interpreter.set_tensor(input_details['index'], input_tensor_quantized)
         gcn_interpreter.invoke()
 
@@ -210,7 +212,7 @@ def gcn_classification(CLASSES: list, gcn_interpreter: tflite.Interpreter, pose_
             probs = (output_tensor_quantized[0].astype(np.float32) - out_zp) * out_scale
         else:
             probs = output_tensor_quantized[0]
-            
+        
         class_idx = int(np.argmax(probs))
         current_label = CLASSES[class_idx]
         current_conf = float(probs[class_idx])
