@@ -1,5 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { type MaybeArray, t } from 'elysia';
-import { type FileType, type FileUnit } from 'elysia/dist/type-system/types';
+import { type FileType, type FileUnit } from 'elysia/type-system/types';
 
 import { ALLOWED_IMAGE_TYPE } from '@/common/constants';
 

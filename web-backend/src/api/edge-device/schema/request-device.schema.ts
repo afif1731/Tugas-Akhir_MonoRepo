@@ -3,6 +3,24 @@ import { t } from 'elysia';
 import { OrderBySchema, PaginationSchema, StringSchema } from '@/common';
 import { DeviceStatus } from '~/generated/prisma/enums';
 
+export const CreateDeviceRequestSchema = t.Object({
+  id: t.Optional(StringSchema.uuid),
+  name: StringSchema.text,
+  location: StringSchema.text,
+  type: StringSchema.text,
+  max_cameras: t.Integer({ default: 1 }),
+});
+
+export const UpdateDeviceRequestSchema = t.Partial(
+  t.Object({
+    ...CreateDeviceRequestSchema.properties,
+    id: t.Undefined(),
+    max_cameras: t.Integer({ minimum: 1 }),
+    status: t.Enum(DeviceStatus),
+    error_message: StringSchema.paragraph,
+  }),
+);
+
 export const GetAllDeviceQuerySchema = t.Object({
   page: PaginationSchema.pageSchema,
   perPage: PaginationSchema.perPageSchema,
@@ -19,14 +37,7 @@ export const GetDeviceCameraQuerySchema = t.Object({
   signature: StringSchema.id,
 });
 
-export const GetDeviceDetailResponseSchema = t.Object({
-  id: StringSchema.uuid,
-  name: StringSchema.text,
-  device_type: StringSchema.text,
-  error_message: t.Nullable(t.String()),
-  status: t.Enum(DeviceStatus),
-  cameras: t.Optional(t.Object({})),
-});
-
+export type ICreateDeviceRequest = typeof CreateDeviceRequestSchema.static;
+export type IUpdateDeviceRequest = typeof UpdateDeviceRequestSchema.static;
 export type IGetAllDeviceQuery = typeof GetAllDeviceQuerySchema.static;
 export type IGetDevicecCameraQuery = typeof GetDeviceCameraQuerySchema.static;

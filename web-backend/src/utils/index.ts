@@ -5,3 +5,4 @@ export * from './jwt.util';
 export * from './pagination.util';
 export * from './reusable.util';
 export * from './validator.util';
+export * from './video-source.util';

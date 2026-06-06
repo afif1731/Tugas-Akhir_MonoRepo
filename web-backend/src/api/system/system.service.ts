@@ -1,7 +1,7 @@
 import { StatusCodes } from 'http-status-codes';
 
 import { ErrorResponse } from '@/common';
-import { AdditionalValidation, FileManager } from '@/utils';
+import { AdditionalValidation, FileManager, SampleVideoSource } from '@/utils';
 
 import {
   type IVideoSampleDeleteRequest,
@@ -9,6 +9,10 @@ import {
 } from './schema';
 
 export abstract class SystemService {
+  static async getAllVideoSample() {
+    return await SampleVideoSource.getAllSample();
+  }
+
   static async uploadVideoSample(data: IVideoSampleUploadRequest) {
     AdditionalValidation.isVideoValid(data.video_file);
 

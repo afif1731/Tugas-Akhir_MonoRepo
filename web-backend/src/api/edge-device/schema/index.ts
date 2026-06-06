@@ -1,1 +1,2 @@
-export * from './get-device.schema';
+export * from './request-device.schema';
+export * from './response-device.schema';

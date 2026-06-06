@@ -4,7 +4,12 @@ import { StatusCodes } from 'http-status-codes';
 import { AuthPlugin, SuccessResponse } from '@/common';
 
 import { EdgeDeviceService } from './edge-device.service';
-import { GetAllDeviceQuerySchema, GetDeviceCameraQuerySchema } from './schema';
+import {
+  CreateDeviceRequestSchema,
+  GetAllDeviceQuerySchema,
+  GetDeviceCameraQuerySchema,
+  UpdateDeviceRequestSchema,
+} from './schema';
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export const EdgeDeviceController = new Elysia({
@@ -13,9 +18,22 @@ export const EdgeDeviceController = new Elysia({
   .use(AuthPlugin)
   .group('/edge-device', app => {
     app
-      .post('/', async () => {}, {
-        authPlugin: { allowed_roles: ['ADMIN'] },
-      })
+      .post(
+        '/',
+        async ({ body }) => {
+          const result = await EdgeDeviceService.createDevice(body);
+
+          return new SuccessResponse(
+            StatusCodes.CREATED,
+            'Device created',
+            result,
+          );
+        },
+        {
+          authPlugin: { allowed_roles: ['ADMIN'] },
+          body: CreateDeviceRequestSchema,
+        },
+      )
       .get(
         '/',
         async ({ query }) => {
@@ -68,12 +86,29 @@ export const EdgeDeviceController = new Elysia({
           authPlugin: { enabled: false },
         },
       )
-      .patch('/:device_id', async () => {}, {
-        authPlugin: { allowed_roles: ['ADMIN'] },
-      })
-      .delete('/:device_id', async () => {}, {
-        authPlugin: { allowed_roles: ['ADMIN'] },
-      });
+      .patch(
+        '/:device_id',
+        async ({ params: { device_id }, body }) => {
+          await EdgeDeviceService.updateDevice(device_id, body);
+
+          return new SuccessResponse(StatusCodes.OK, 'Device updated');
+        },
+        {
+          authPlugin: { allowed_roles: ['ADMIN'] },
+          body: UpdateDeviceRequestSchema,
+        },
+      )
+      .delete(
+        '/:device_id',
+        async ({ params: { device_id } }) => {
+          await EdgeDeviceService.deleteDevice(device_id);
+
+          return new SuccessResponse(StatusCodes.OK, 'Device deleted');
+        },
+        {
+          authPlugin: { allowed_roles: ['ADMIN'] },
+        },
+      );
 
     return app;
   });

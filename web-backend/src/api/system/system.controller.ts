@@ -14,6 +14,21 @@ export const SystemController = new Elysia({ name: 'system-controller' })
   .use(AuthPlugin)
   .group('/system', app => {
     app
+      .get(
+        '/sample-video',
+        async () => {
+          const result = await SystemService.getAllVideoSample();
+
+          return new SuccessResponse(
+            StatusCodes.OK,
+            'get all video samples',
+            result,
+          );
+        },
+        {
+          authPlugin: { allowed_roles: 'ADMIN' },
+        },
+      )
       .post(
         '/sample-video',
         async ({ body }) => {
