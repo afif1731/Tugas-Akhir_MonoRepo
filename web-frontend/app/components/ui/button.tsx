@@ -52,7 +52,7 @@ const buttonVariants = cva(
         variant: 'default',
         colors: 'destructive',
         className:
-          'bg-destructive text-teal-950 hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40',
+          'bg-destructive text-white hover:bg-destructive/80 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40',
       },
       {
         variant: 'outline',
@@ -69,7 +69,7 @@ const buttonVariants = cva(
         variant: 'outline',
         colors: 'teal-800',
         className:
-          'border-teal-800 text-teal-800 hover:bg-teal-800 hover:text-white focus-visible:ring-teal-800/20',
+          'border-teal-800 text-teal-800 hover:bg-accent focus-visible:ring-teal-800/20',
       },
       {
         variant: 'outline',

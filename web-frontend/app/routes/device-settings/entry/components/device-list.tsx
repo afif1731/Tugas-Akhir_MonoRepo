@@ -97,28 +97,32 @@ export function UnregisteredEdgeDeviceList({ devices }: { devices?: IEdgeDeviceS
 
 function DeviceItem({ device, state }: { device: IEdgeDevice; state?: IEdgeDeviceState }) {
   const realStatus: IEdgeDeviceStatus = state
-    ? 'ACTIVE'
-    : device.status !== 'ACTIVE'
+    ? 'ONLINE'
+    : device.status !== 'ONLINE'
       ? device.status
-      : 'No_SIGNAL';
+      : 'NO_SIGNAL';
 
   return (
     <div className="flex h-fit w-full flex-row items-center justify-evenly gap-6 rounded-xl bg-white px-4 py-3 drop-shadow-black/50 drop-shadow-xl">
       <HardDriveIcon
-        className={cn('size-9 stroke-3', realStatus === 'ACTIVE' ? 'text-black' : 'text-slate-500')}
+        className={cn('size-9 stroke-3', realStatus === 'ONLINE' ? 'text-black' : 'text-slate-500')}
       />
 
       <div className="flex w-full flex-col items-start justify-start gap-4">
         <div className="flex w-full flex-row justify-between">
-          <Text
-            type="t"
-            className={cn(
-              'font-semibold',
-              realStatus === 'ACTIVE' ? 'text-red-500' : 'text-red-300'
-            )}
-          >
-            {device.name}
-          </Text>
+          <Link to={`/device-settings/${device.id}`}>
+            <Text
+              type="t"
+              className={cn(
+                'font-semibold hover:underline',
+                realStatus === 'ONLINE'
+                  ? 'text-red-500 hover:text-red-600'
+                  : 'text-red-300 hover:text-red-400'
+              )}
+            >
+              {device.name}
+            </Text>
+          </Link>
           <div className="flex flex-row items-center justify-start gap-1 p-0">
             <MapPinIcon className="size-4 text-slate-500" />
             <Text type="btn" className={cn('font-semibold text-slate-500')}>
@@ -144,7 +148,7 @@ function DeviceItem({ device, state }: { device: IEdgeDevice; state?: IEdgeDevic
             </Text>
           </DeviceStatusFrame>
 
-          {realStatus === 'ACTIVE' && (
+          {realStatus === 'ONLINE' && (
             <>
               <DeviceStatusFrame>
                 <Text type="btn"> CPU: </Text>
@@ -174,17 +178,17 @@ function DeviceItem({ device, state }: { device: IEdgeDevice; state?: IEdgeDevic
   );
 }
 
-function DeviceStatusFrame({ children }: { children: ReactNode }) {
+export function DeviceStatusFrame({ children }: { children: ReactNode }) {
   return (
-    <div className="flex flex-row items-center justify-start gap-1 rounded-xl bg-slate-200 px-3 py-2 font-medium text-teal-900">
+    <div className="flex w-fit flex-row items-center justify-start gap-1 rounded-xl bg-slate-200 px-3 py-2 font-medium text-teal-900">
       {children}
     </div>
   );
 }
 
-function DeviceStatusMap({ status }: { status: IEdgeDeviceStatus }) {
+export function DeviceStatusMap({ status }: { status: IEdgeDeviceStatus }) {
   switch (status) {
-    case 'ACTIVE':
+    case 'ONLINE':
       return (
         <div className="flex flex-row items-center justify-start gap-1 font-semibold text-green-500">
           <CircleDotIcon className="size-4 stroke-3" />
@@ -196,6 +200,14 @@ function DeviceStatusMap({ status }: { status: IEdgeDeviceStatus }) {
         <div className="flex flex-row items-center justify-start gap-1 font-semibold text-violet-600">
           <CircleSlashedIcon className="size-4 stroke-3" />
           <Text type="btn">Disabled</Text>
+        </div>
+      );
+
+    case 'OFFLINE':
+      return (
+        <div className="flex flex-row items-center justify-start gap-1 font-semibold text-violet-600">
+          <CircleSlashedIcon className="size-4 stroke-3" />
+          <Text type="btn">OFFLINE</Text>
         </div>
       );
     case 'ERROR':

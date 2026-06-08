@@ -22,9 +22,9 @@ export function WebNameLogo({ size = 'regular' }: { size?: 'regular' | 'small' }
             size === 'regular' ? 'text-3xl md:text-5xl' : 'text-2xl'
           )}
         >
-          COM
+          MOC
         </span>
-        {/* <span
+        <span
           className={cn(
             'italic tracking-tighter',
             'font-racing-sans text-red-400 text-shadow-2xs text-shadow-white',
@@ -32,7 +32,7 @@ export function WebNameLogo({ size = 'regular' }: { size?: 'regular' | 'small' }
           )}
         >
           A
-        </span> */}
+        </span>
         <span
           className={cn(
             'font-racing-sans text-shadow-2xs text-shadow-white text-teal-700',

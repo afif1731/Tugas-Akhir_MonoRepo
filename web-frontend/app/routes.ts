@@ -1,4 +1,4 @@
-import { index, layout, type RouteConfig, route } from '@react-router/dev/routes';
+import { index, layout, prefix, type RouteConfig, route } from '@react-router/dev/routes';
 
 export default [
   route('sandbox', 'routes/sandbox/index.tsx'),
@@ -10,7 +10,11 @@ export default [
   ]),
 
   layout('routes/layouts/private-layout.tsx', [
-    route('device-settings', 'routes/device-settings/index.tsx'),
+    ...prefix('device-settings', [
+      index('routes/device-settings/entry/index.tsx'),
+      route('create', 'routes/device-settings/create/index.tsx'),
+      route(':device_id', 'routes/device-settings/detail/index.tsx'),
+    ]),
   ]),
 
   layout('routes/layouts/authenticated-layout.tsx', [route('profile', 'routes/profile/index.tsx')]),

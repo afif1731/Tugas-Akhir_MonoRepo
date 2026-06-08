@@ -10,6 +10,7 @@ import { api } from '@/lib/axios';
 import { cn, generateMeta, handleApiResponseError } from '@/lib/utils';
 
 import { Text } from '@/components/helper/text';
+import TitleSection from '@/components/sections/title';
 import { Button } from '@/components/ui/button';
 
 import type { IEdgeDevice } from '@/schemas/models';
@@ -59,12 +60,10 @@ export default function CctvSettingsPage() {
     <div
       className={cn(
         'block w-full bg-slate-100 px-8 py-8',
-        isMobile ? 'min-h-screen' : 'h-screen max-h-screen'
+        isMobile ? 'min-h-lvh' : 'h-screen max-h-screen'
       )}
     >
-      <Text type="h6" className="pb-4 font-bold text-red-600">
-        Edge Device Settings
-      </Text>
+      <TitleSection title="Edge Device Settings" />
 
       <div className="flex w-full flex-row items-center justify-between pb-4">
         <DeviceListTypeButton

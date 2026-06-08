@@ -43,7 +43,8 @@ export function SidebarComponent({ user, isCollapsed, setIsCollapsed, isMobile }
       ref={sidebarRef}
       aria-label='sidebar-navigation'
       className={cn(
-        'absolute z-50 flex flex-col h-svh border-teal-500 bg-teal-50',
+        'absolute z-50 flex flex-col border-teal-500 bg-teal-50',
+        isMobile ? 'h-lvh' : 'h-svh',
         isCollapsed ? 'w-0 border-0' : 'w-64 border-r-2'
       )}
     >

@@ -53,3 +53,12 @@ export function generateMeta(title: string, description?: string) {
     { name: 'description', content: description ?? 'COM-Vision' },
   ];
 }
+
+export function createSlug(text: string): string {
+  return text
+    .trim()
+    .replaceAll(/\s+/g, '')
+    .toLowerCase()
+    .replaceAll('-', '_')
+    .replaceAll(/\W/g, '');
+}
