@@ -194,7 +194,9 @@ def gcn_classification(CLASSES: list, gcn_interpreter: tflite.Interpreter, pose_
         
         expected_shape = input_details['shape']
         if len(expected_shape) == 4:
-            input_tensor_float = tensor_data.astype(np.float32)
+            # Model TPU tidak memiliki layer EarlyReshape, sehingga kita harus 
+            # melakukan transpose secara manual dari (C, T, V, M) ke (M, T, V, C)
+            input_tensor_float = np.transpose(tensor_data, (3, 1, 2, 0)).astype(np.float32)
         else:
             input_tensor_float = np.expand_dims(tensor_data, axis=0).astype(np.float32)
 
