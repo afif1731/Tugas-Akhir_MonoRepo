@@ -168,8 +168,8 @@ def yolo_pose_extraction(yolo_interpreter: tflite.Interpreter, frame: np.ndarray
                 relative_kpts = np.zeros((3, 17))
                 for v in range(17):
                     if kpts[v][2] > 0.5:
-                        relative_kpts[0, v] = kpts[v][0]
-                        relative_kpts[1, v] = kpts[v][1]
+                        relative_kpts[0, v] = kpts[v][0] - pelvis_x
+                        relative_kpts[1, v] = kpts[v][1] - pelvis_y
                         relative_kpts[2, v] = kpts[v][2]
                         
                 people.append({
