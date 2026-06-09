@@ -188,10 +188,15 @@ def yolo_pose_extraction(yolo_interpreter: tflite.Interpreter, frame: np.ndarray
 def gcn_classification(CLASSES: list, gcn_interpreter: tflite.Interpreter, pose_buffer: deque, frame_count: int, T: int):
     if len(pose_buffer) == T and frame_count % 5 == 0:
         tensor_data = np.stack(pose_buffer, axis=1) # shape: (C, T, V, M)
-        input_tensor_float = np.expand_dims(tensor_data, axis=0).astype(np.float32) # shape: (1, C, T, V, M)
 
         input_details = gcn_interpreter.get_input_details()[0]
         output_details = gcn_interpreter.get_output_details()[0]
+        
+        expected_shape = input_details['shape']
+        if len(expected_shape) == 4:
+            input_tensor_float = tensor_data.astype(np.float32)
+        else:
+            input_tensor_float = np.expand_dims(tensor_data, axis=0).astype(np.float32)
 
         input_scale, input_zp = input_details['quantization']
         
