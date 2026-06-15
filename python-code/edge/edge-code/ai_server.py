@@ -1,5 +1,7 @@
 import os
-os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
+os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|fflags;nobuffer|flags;low_delay"
+os.environ["OPENCV_LOG_LEVEL"] = "FATAL"
+os.environ["OPENCV_FFMPEG_LOGLEVEL"] = "-8"
 import cv2
 import time
 import json
@@ -141,7 +143,11 @@ def handle_client(conn, addr):
                     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
                     continue
                 else:
-                    break
+                    logger.warning(f"[{camera_id}] Stream read failed (corrupted frame/disconnected). Reconnecting...")
+                    cap.release()
+                    time.sleep(2)
+                    cap = cv2.VideoCapture(input_source)
+                    continue
 
             frame = cv2.resize(frame, (YOLO_IMGZ, YOLO_IMGZ))
             t_resize = time.time()
