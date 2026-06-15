@@ -58,7 +58,7 @@ export function DeviceStatusContent({
         Device Status
       </Text>
 
-      <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-6 md:grid-cols-5">
         <div className="flex flex-col gap-1">
           <Text type="p" className="text-muted-foreground">
             Status
