@@ -309,14 +309,6 @@ export abstract class CameraService {
     source_type: CameraSourceType,
   ) {
     switch (source_type) {
-      case 'RTSP_LINK': {
-        const rtspRegex = /^rtsp:\/\/\S+$/i;
-        if (!rtspRegex.test(source))
-          throw new ErrorResponse(StatusCodes.BAD_REQUEST, 'Invalid RSTP link');
-
-        return true;
-      }
-
       case 'STATIC_FILE': {
         const videoSamples = await SampleVideoSource.getAllSample();
         if (!videoSamples.includes(source))
