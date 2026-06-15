@@ -2,8 +2,13 @@
 import { StatusCodes } from 'http-status-codes';
 import { validate as isValidUuid } from 'uuid';
 
-import { ErrorResponse, prisma } from '@/common';
-import { createSlug, paginate, SampleVideoSource } from '@/utils';
+import { ErrorResponse, LiveKitConfig, prisma } from '@/common';
+import {
+  createSlug,
+  encryptTextToAES256,
+  paginate,
+  SampleVideoSource,
+} from '@/utils';
 import { type Cameras } from '~/generated/prisma/client';
 import { type CameraSourceType } from '~/generated/prisma/enums';
 import {
@@ -25,6 +30,27 @@ export abstract class CameraService {
     await this.isCameraSlugExist(cameraSlug);
 
     await this.validateCameraSource(data.source, data.source_type);
+
+    let rtspPassword: string | undefined;
+    let rtspIv: string | undefined;
+    let rtspAuthTag: string | undefined;
+
+    if (data.source_type === 'RTSP_LINK') {
+      if (!data.rtsp_username || !data.rtsp_password)
+        throw new ErrorResponse(
+          StatusCodes.BAD_REQUEST,
+          'RTSP credential required',
+        );
+
+      const encryptedPasswordObject = encryptTextToAES256(
+        data.rtsp_password,
+        LiveKitConfig.DEVICE_SECRET,
+      );
+
+      rtspPassword = encryptedPasswordObject.encryptedString;
+      rtspIv = encryptedPasswordObject.iv;
+      rtspAuthTag = encryptedPasswordObject.authTag;
+    }
 
     if (data.device_id) {
       const device = await prisma.edgeDevices.findUnique({
@@ -54,6 +80,10 @@ export abstract class CameraService {
         slug: cameraSlug,
         source: data.source,
         source_type: data.source_type,
+        rtsp_username: data.rtsp_username,
+        rtsp_password: rtspPassword,
+        rtsp_iv: rtspIv,
+        rtsp_authtag: rtspAuthTag,
         edge_device_id: data.device_id,
       },
       select: {
@@ -196,6 +226,21 @@ export abstract class CameraService {
         'Error message required',
       );
 
+    let rtspPassword: string | undefined;
+    let rtspIv: string | undefined;
+    let rtspAuthTag: string | undefined;
+
+    if (data.rtsp_password) {
+      const encryptedPasswordObject = encryptTextToAES256(
+        data.rtsp_password,
+        LiveKitConfig.DEVICE_SECRET,
+      );
+
+      rtspPassword = encryptedPasswordObject.encryptedString;
+      rtspIv = encryptedPasswordObject.iv;
+      rtspAuthTag = encryptedPasswordObject.authTag;
+    }
+
     await prisma.cameras.update({
       where: { id: camera_id },
       data: {
@@ -203,6 +248,10 @@ export abstract class CameraService {
         slug: data.name ? createSlug(data.name) : undefined,
         source: data.source,
         source_type: data.source_type,
+        rtsp_username: data.rtsp_username,
+        rtsp_password: rtspPassword,
+        rtsp_iv: rtspIv,
+        rtsp_authtag: rtspAuthTag,
         edge_device_id: data.device_id,
         cv_treshold: data.cv_threshold,
         status: data.status,

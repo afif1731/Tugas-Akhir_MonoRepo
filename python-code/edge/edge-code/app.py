@@ -156,7 +156,8 @@ async def main():
                 camera=camera,
                 room=room,
                 config=CONFIG,
-                backend_url=BACKEND_URL
+                backend_url=BACKEND_URL,
+                device_secret=DEVICE_SECRET
             )
         )
         active_tasks[camera['id']] = task

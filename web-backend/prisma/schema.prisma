@@ -104,6 +104,10 @@ model Cameras {
   slug                String                @unique
   source              String
   source_type         CameraSourceType
+  rtsp_username       String?
+  rtsp_password       String?
+  rtsp_iv             String?
+  rtsp_authtag        String?
   status              DeviceStatus          @default(OFFLINE)
   cv_treshold         Float                 @default(0.8)
   error_message       Json?

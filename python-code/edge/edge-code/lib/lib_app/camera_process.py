@@ -11,6 +11,7 @@ import numpy as np
 from livekit import rtc
 from lib.utils import validate_file
 from lib.lib_app.livekit_message_publish import publish_violence_detection
+from lib.utils import text_aes_decrypt
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ def recv_exact(sock, n):
         data.extend(packet)
     return data
 
-async def run_camera_process(camera, room, config, backend_url):
+async def run_camera_process(camera, room, config, backend_url, device_secret):
     """
     Menjalankan proses pengiriman data ke LiveKit untuk satu kamera spesifik.
     (Berperan sebagai TCP Client untuk AI Server)
@@ -31,12 +32,28 @@ async def run_camera_process(camera, room, config, backend_url):
     camera_id = camera['id']
     input_source = camera['source']
     source_type = camera['source_type']
-    
+    rtsp_username = camera['rtsp_username']
+    rtsp_password = camera['rtsp_password']
+    rtsp_iv = camera['rtsp_iv']
+    rtsp_authtag = camera['rtsp_authtag']
+
+    camera_source = input_source
+
     # Validasi File (Download jika belum ada)
     if source_type == 'STATIC_FILE':
         base_dir = os.path.dirname(os.path.abspath(__file__))
         file_path = os.path.join(base_dir, "_video_sample", input_source)
         await validate_file(file_path, input_source, backend_url)
+
+    if source_type == 'RTSP_LINK':
+        actual_password = text_aes_decrypt(
+            encrypted_hex=rtsp_password,
+            iv_hex=rtsp_iv,
+            auth_tag_hex=rtsp_authtag,
+            secret=device_secret
+        )
+
+        camera_source = f"rtsp://{rtsp_username}:{actual_password}@{input_source}"
         
     livekit_track_name = f"track_{camera_id}"
     
@@ -70,7 +87,7 @@ async def run_camera_process(camera, room, config, backend_url):
     # Kirim Payload Konfigurasi ke AI Server
     req_payload = {
         "camera_id": camera_id,
-        "input_source": input_source,
+        "input_source": camera_source,
         "source_type": source_type,
         "config": config
     }
