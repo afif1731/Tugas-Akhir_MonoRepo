@@ -5,7 +5,7 @@ export abstract class SampleVideoSource {
   private static UPLOAD_FILE_FOLDER =
     process.env.FILE_STORAGE_PATH || 'uploads';
   private static SAMPLE_VIDEO_FOLDER = 'sample-video';
-  private static ALLOWED_VIDEO_FORMAT = ['mp4', 'wmv', 'flv', 'mkv'];
+  private static ALLOWED_VIDEO_FORMAT = ['.mp4', '.wmv', '.flv', '.mkv'];
 
   static async getAllSample() {
     const files = await readdir(
