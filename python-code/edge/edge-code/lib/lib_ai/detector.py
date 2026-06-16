@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 import tflite_runtime.interpreter as tflite
 
-def yolo_pose_extraction(yolo_interpreter: tflite.Interpreter, frame: np.ndarray, conf_thresh=0.25, iou_thresh=0.45):
+def yolo_pose_extraction(yolo_interpreter: tflite.Interpreter, frame: np.ndarray, conf_thresh=0.25, iou_thresh=0.45, imgsz=None):
     t0 = time.time()
     
     input_details = yolo_interpreter.get_input_details()[0]
@@ -17,7 +17,11 @@ def yolo_pose_extraction(yolo_interpreter: tflite.Interpreter, frame: np.ndarray
     input_shape = input_details['shape']
 
     is_space_to_depth = False
-    if len(input_shape) == 4:
+    if imgsz is not None:
+        input_height, input_width = imgsz, imgsz
+        if len(input_shape) == 4 and input_shape[-1] == 12:
+            is_space_to_depth = True
+    elif len(input_shape) == 4:
         if input_shape[-1] == 12: # Deteksi model EdgeTPU dengan Space-to-Depth 2x2
             input_height, input_width = input_shape[1] * 2, input_shape[2] * 2
             is_space_to_depth = True
@@ -185,46 +189,83 @@ def yolo_pose_extraction(yolo_interpreter: tflite.Interpreter, frame: np.ndarray
 
     return people
 
-def gcn_classification(CLASSES: list, gcn_interpreter: tflite.Interpreter, pose_buffer: deque, frame_count: int, T: int):
+def gnn_classification(CLASSES: list, gnn_backbone_interpreter: tflite.Interpreter, gnn_head_interpreter: tflite.Interpreter, pose_buffer: deque, frame_count: int, T: int):
     if len(pose_buffer) == T and frame_count % 5 == 0:
-        tensor_data = np.stack(pose_buffer, axis=1) # shape: (C, T, V, M)
+        t_start_gnn = time.time()
+        # pose_buffer contains T frames of shape (C=3, V, M)
+        tensor_data = np.stack(pose_buffer, axis=0) # shape: (T, C, V, M)
+        tensor_data = np.transpose(tensor_data, (3, 0, 2, 1)) # shape: (M, T, V, C)
 
-        input_details = gcn_interpreter.get_input_details()[0]
-        output_details = gcn_interpreter.get_output_details()[0]
+        M = tensor_data.shape[0]
+
+        bb_input_details = gnn_backbone_interpreter.get_input_details()[0]
+        bb_output_details = gnn_backbone_interpreter.get_output_details()[0]
         
-        expected_shape = input_details['shape']
-        if len(expected_shape) == 4:
-            input_tensor_float = tensor_data.astype(np.float32)
+        bb_in_scale, bb_in_zp = bb_input_details['quantization']
+        bb_out_scale, bb_out_zp = bb_output_details['quantization']
+        
+        features_list = []
+        t_bb_total = 0
+        for m in range(M):
+            person_data = tensor_data[m] # (T, V, C)
+            input_tensor_float = np.expand_dims(person_data, axis=0).astype(np.float32) # (1, T, V, C)
+
+            if bb_in_scale > 0:
+                input_tensor_quantized = np.clip(np.round(input_tensor_float / bb_in_scale + bb_in_zp), -128, 127).astype(np.int8)
+            else:
+                input_tensor_quantized = input_tensor_float.astype(bb_input_details['dtype'])
+
+            gnn_backbone_interpreter.set_tensor(bb_input_details['index'], input_tensor_quantized)
+            
+            t0 = time.time()
+            gnn_backbone_interpreter.invoke()
+            t_bb_total += (time.time() - t0)
+
+            output_tensor_quantized = gnn_backbone_interpreter.get_tensor(bb_output_details['index'])
+            
+            if bb_out_scale > 0:
+                features = (output_tensor_quantized[0].astype(np.float32) - bb_out_zp) * bb_out_scale
+            else:
+                features = output_tensor_quantized[0]
+                
+            features_list.append(features)
+
+        # Max pooling across M people
+        pooled_features = np.max(np.stack(features_list, axis=0), axis=0) # (hidden_dim,)
+        
+        head_input_details = gnn_head_interpreter.get_input_details()[0]
+        head_output_details = gnn_head_interpreter.get_output_details()[0]
+        
+        head_in_scale, head_in_zp = head_input_details['quantization']
+        head_out_scale, head_out_zp = head_output_details['quantization']
+        
+        head_input_float = np.expand_dims(pooled_features, axis=0).astype(np.float32) # (1, hidden_dim)
+
+        if head_in_scale > 0:
+            head_input_quantized = np.clip(np.round(head_input_float / head_in_scale + head_in_zp), -128, 127).astype(np.int8)
         else:
-            input_tensor_float = np.expand_dims(tensor_data, axis=0).astype(np.float32)
+            head_input_quantized = head_input_float.astype(head_input_details['dtype'])
 
-        input_scale, input_zp = input_details['quantization']
+        gnn_head_interpreter.set_tensor(head_input_details['index'], head_input_quantized)
         
-        if input_scale > 0:
-            input_tensor_quantized = np.clip(np.round(input_tensor_float / input_scale + input_zp), -128, 127).astype(np.int8)
+        t1 = time.time()
+        gnn_head_interpreter.invoke()
+        t_head = time.time() - t1
+
+        head_output_quantized = gnn_head_interpreter.get_tensor(head_output_details['index'])
+
+        if head_out_scale > 0:
+            probs = (head_output_quantized[0].astype(np.float32) - head_out_zp) * head_out_scale
         else:
-            input_tensor_quantized = input_tensor_float.astype(input_details['dtype'])
-
-        logger.info(f"GCN INT8 IN: min={np.min(input_tensor_quantized)}, max={np.max(input_tensor_quantized)}, mean={np.mean(input_tensor_quantized):.2f}, scale={input_scale:.4f}, zp={input_zp}")
-        
-        gcn_interpreter.set_tensor(input_details['index'], input_tensor_quantized)
-        gcn_interpreter.invoke()
-
-        output_tensor_quantized = gcn_interpreter.get_tensor(output_details['index'])
-        out_scale, out_zp = output_details['quantization']
-        
-        logger.info(f"GCN INT8 OUT: raw={output_tensor_quantized[0]}, scale={out_scale:.4f}, zp={out_zp}")
-        
-        if out_scale > 0:
-            probs = (output_tensor_quantized[0].astype(np.float32) - out_zp) * out_scale
-        else:
-            probs = output_tensor_quantized[0]
+            probs = head_output_quantized[0]
             
         class_idx = int(np.argmax(probs))
         current_label = CLASSES[class_idx]
         current_conf = float(probs[class_idx])
         
         all_conf = {CLASSES[i]: float(probs[i]) for i in range(len(CLASSES))}
+        
+        logger.info(f"GNN Inference (ms) - Backbone (x{M}): {t_bb_total*1000:.1f} | Head: {t_head*1000:.1f} | Total: {(time.time()-t_start_gnn)*1000:.1f}")
         
         return current_label, current_conf, all_conf
     

@@ -13,8 +13,9 @@ import numpy as np
 from collections import deque
 import tflite_runtime.interpreter as tflite
 
-from lib.lib_ai.detector import yolo_pose_extraction, gcn_classification
+from lib.lib_ai.detector import yolo_pose_extraction, gnn_classification
 from lib.lib_ai.crowd_cluster import CentroidTracker, spatial_clustering
+from lib.lib_ai.camera_stream import CameraStream
 
 logging.basicConfig(
     level=logging.INFO,
@@ -24,7 +25,9 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-YOLO_IMGZ = 640
+FRAME_SIZE = 640
+YOLO_IMGSZ = 256
+
 YOLO_PERSON_CONFIDENCE_THRESHOLD = 0.15
 YOLO_IOU_THRESHOLD = 0.45
 
@@ -32,64 +35,6 @@ CENTROID_TRACKER_MAX_DISAPPEARED = 200
 CENTROID_TRACKER_MAX_DISTANCE = 300
 
 SPATIAL_CLUSTERING_MAX_DISTANCE = 200
-
-class CameraStream:
-    def __init__(self, src, is_static_file=False):
-        self.src = src
-        self.is_static_file = is_static_file
-        self.cap = cv2.VideoCapture(src)
-        self.ret, self.frame = self.cap.read()
-        self.running = True
-        self.lock = threading.Lock()
-        
-        if not self.is_static_file:
-            self.thread = threading.Thread(target=self.update, daemon=True)
-            self.thread.start()
-
-    def update(self):
-        while self.running:
-            if not self.cap.isOpened():
-                time.sleep(0.1)
-                continue
-                
-            ret, frame = self.cap.read()
-            
-            if not ret:
-                if isinstance(self.src, str) and self.src.startswith("rtsp"):
-                    logger.warning(f"RTSP Stream read failed. Reconnecting...")
-                    self.cap.release()
-                    time.sleep(2)
-                    self.cap = cv2.VideoCapture(self.src)
-                else:
-                    time.sleep(0.1)
-                continue
-                
-            with self.lock:
-                self.ret = ret
-                self.frame = frame
-
-    def read(self):
-        if self.is_static_file:
-            ret, frame = self.cap.read()
-            if not ret:
-                self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                ret, frame = self.cap.read()
-            return ret, frame
-        else:
-            with self.lock:
-                if not self.ret or self.frame is None:
-                    return False, None
-                return True, self.frame.copy()
-
-    def isOpened(self):
-        return self.running
-
-    def release(self):
-        self.running = False
-        if not self.is_static_file and hasattr(self, 'thread') and self.thread.is_alive():
-            self.thread.join(timeout=1.0)
-        if self.cap:
-            self.cap.release()
 
 def load_interpreter(model_path, model_name):
     logger.info(f"Loading {model_name}...")
@@ -151,14 +96,17 @@ def handle_client(conn, addr):
         m_people = config['M']
         
         yolo_file = config.get('YOLO_FILE', 'yolov8n-pose_full_integer_quant_edgetpu.tflite')
-        gcn_file = config.get('GCN_FILE', 'GCN_LSTM_best_int8_edgetpu.tflite')
+        gnn_backbone_file = config.get('GNN_BACKBONE_FILE', 'GNN_TCN_backbone_best_int8_edgetpu.tflite')
+        gnn_head_file = config.get('GNN_HEAD_FILE', 'GNN_TCN_head_best_int8_edgetpu.tflite')
 
         base_dir = os.path.dirname(os.path.abspath(__file__))
         yolo_path = os.path.join(base_dir, "_model", yolo_file)
-        gcn_path = os.path.join(base_dir, "_model", gcn_file)
+        gnn_backbone_path = os.path.join(base_dir, "_model", gnn_backbone_file)
+        gnn_head_path = os.path.join(base_dir, "_model", gnn_head_file)
         
         yolo_interpreter = load_interpreter(yolo_path, "YOLO Pose")
-        gcn_interpreter = load_interpreter(gcn_path, "GCN-LSTM")
+        gnn_backbone_interpreter = load_interpreter(gnn_backbone_path, "GNN-TCN Backbone")
+        gnn_head_interpreter = load_interpreter(gnn_head_path, "GNN-TCN Head")
 
         if source_type == 'LOCAL':
             cap = CameraStream(int(input_source), is_static_file=False)
@@ -200,7 +148,7 @@ def handle_client(conn, addr):
                 time.sleep(0.01)
                 continue
 
-            frame = cv2.resize(frame, (YOLO_IMGZ, YOLO_IMGZ))
+            frame = cv2.resize(frame, (FRAME_SIZE, FRAME_SIZE))
             t_resize = time.time()
             
             # --- PROSES YOLO POSE ---
@@ -208,7 +156,8 @@ def handle_client(conn, addr):
                 yolo_interpreter=yolo_interpreter,
                 frame=frame,
                 conf_thresh=YOLO_PERSON_CONFIDENCE_THRESHOLD,
-                iou_thresh=YOLO_IOU_THRESHOLD
+                iou_thresh=YOLO_IOU_THRESHOLD,
+                imgsz=YOLO_IMGSZ
             )
             t_yolo = time.time()
             
@@ -284,10 +233,11 @@ def handle_client(conn, addr):
                 
                 cluster_buffers[object_id].append(frame_pose_data)
                 
-                # --- PROSES GCN-LSTM ---
-                new_label, new_conf, all_conf = gcn_classification(
+                # --- PROSES GNN-TCN ---
+                new_label, new_conf, all_conf = gnn_classification(
                     classes,
-                    gcn_interpreter,
+                    gnn_backbone_interpreter,
+                    gnn_head_interpreter,
                     cluster_buffers[object_id],
                     frame_count,
                     t_frames
@@ -337,7 +287,7 @@ def handle_client(conn, addr):
             t_transmit = time.time()
             
             if frame_count % 15 == 0:
-                logger.info(f"[{camera_id}] PROFILE (ms) - Camera: {(t_read-t_start)*1000:.1f} | Resize: {(t_resize-t_read)*1000:.1f} | YOLO: {(t_yolo-t_resize)*1000:.1f} | GCN+Tracker: {(t_gcn-t_yolo)*1000:.1f} | TX/Network: {(t_transmit-t_gcn)*1000:.1f}")
+                logger.info(f"[{camera_id}] PROFILE (ms) - Camera: {(t_read-t_start)*1000:.1f} | Resize: {(t_resize-t_read)*1000:.1f} | YOLO: {(t_yolo-t_resize)*1000:.1f} | GNN+Tracker: {(t_gcn-t_yolo)*1000:.1f} | TX/Network: {(t_transmit-t_gcn)*1000:.1f}")
                 
             frame_count += 1
             
