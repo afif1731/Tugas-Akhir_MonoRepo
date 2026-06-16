@@ -58,7 +58,7 @@ async def run_camera_process(camera, room, config, backend_url, device_secret):
     livekit_track_name = f"track_{camera_id}"
     
     logger.info(f"Setting up LiveKit transmission for camera {camera_id}")
-    source = rtc.VideoSource(640, 480)
+    source = rtc.VideoSource(640, 640)
     track = rtc.LocalVideoTrack.create_video_track(livekit_track_name, source)
     options = rtc.TrackPublishOptions()
     options.source = rtc.TrackSource.SOURCE_CAMERA
