@@ -97,7 +97,7 @@ def handle_client(conn, addr):
         
         yolo_file = config.get('YOLO_FILE', 'yolov8n-pose_full_integer_quant_edgetpu.tflite')
         gnn_backbone_file = config.get('GNN_BACKBONE_FILE', 'GNN_TCN_backbone_best_int8_edgetpu.tflite')
-        gnn_head_file = config.get('GNN_HEAD_FILE', 'GNN_TCN_head_best_int8_edgetpu.tflite')
+        gnn_head_file = config.get('GNN_HEAD_FILE', 'GNN_TCN_head_best_int8.tflite')
 
         base_dir = os.path.dirname(os.path.abspath(__file__))
         yolo_path = os.path.join(base_dir, "_model", yolo_file)

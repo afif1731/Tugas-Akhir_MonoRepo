@@ -35,7 +35,8 @@ LIVEKIT_URL = os.getenv('LIVEKIT_URL', 'ws://127.0.0.1:7880')
 BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:4000')
 
 YOLO_FILE = os.getenv('YOLO_FILE', 'yolov8n-pose_full_integer_quant_edgetpu.tflite')
-GCN_FILE = os.getenv('GCN_FILE', 'GCN_LSTM_best_int8_edgetpu.tflite')
+GNN_BACKBONE_FILE = os.getenv('GNN_BACKBONE_FILE', 'GNN_TCN_backbone_best_int8_edgetpu.tflite')
+GNN_HEAD_FILE = os.getenv('GNN_HEAD_FILE', 'GNN_TCN_head_best_int8.tflite')
 
 DEVICE_SECRET = os.getenv('LIVEKIT_DEVICE_SECRET', 'supersecretvalue')
 DEVICE_ID = os.getenv('DEVICE_ID', 'not_set')
@@ -55,7 +56,8 @@ CONFIG = {
     "V": V,
     "M": M,
     "YOLO_FILE": YOLO_FILE,
-    "GCN_FILE": GCN_FILE
+    "GNN_BACKBONE_FILE": GNN_BACKBONE_FILE,
+    "GNN_HEAD_FILE": GNN_HEAD_FILE
 }
 
 async def main():
