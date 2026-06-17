@@ -41,7 +41,8 @@ async def run_camera_process(camera, room, config, backend_url, device_secret):
 
     # Validasi File (Download jika belum ada)
     if source_type == 'STATIC_FILE':
-        base_dir = os.path.dirname(os.path.abspath(__file__))
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        base_dir = os.path.dirname(os.path.dirname(current_dir))
         file_path = os.path.join(base_dir, "_video_sample", input_source)
         await validate_file(file_path, input_source, backend_url)
 
