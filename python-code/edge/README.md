@@ -22,6 +22,8 @@ sudo apt-get update --allow-releaseinfo-change
 sudo apt-get install python3-tflite-runtime python3-pycoral libedgetpu1-std
 ```
 
+> Don't forget to reboot your device afterward!
+
 1. Install `uv`
 
 2. When you're running the code in Google Coral Device and you have sdcard mounted, make sure to change the uv cache to your sdcard to make sure your device didn't running out of memory
@@ -84,10 +86,13 @@ uv run --env-file .env edge-code/app.py
 
 We'll be using `systemd` to run the code on background
 
-1. Create a new service file (ex: `mocavision.service`) and then copy the content of `systemd-service/mocavis-edge-code.conf` to your new file. Make sure to edit the content.
+1. Create a new service file (ex: `mocavis-edge.service` and `mocavis-edge.service`) and then copy the content of `systemd-service/mocavis-edge-code.conf` to your new file. Make sure to edit the content.
 
 ```shell
-sudo nano /etc/systemd/system/mocavision.service
+sudo nano /etc/systemd/system/mocavis-edge.service
+
+# Make the same one for the ai server, with a bit change (using ai_server.py instead of app.py and using python3 instead of uv)
+sudo nano /etc/systemd/system/mocavis-ai.service
 ```
 
 2. Enable the service and allow it to automatically run when the device is started
@@ -95,13 +100,13 @@ sudo nano /etc/systemd/system/mocavision.service
 ```shell
 sudo systemctl daemon-reload
 
-sudo systemctl enable mocavision.service
+sudo systemctl enable mocavis-edge.service
 
-sudo systemctl start mocavision.service
+sudo systemctl start mocavis-edge.service
 ```
 
 3. To check the log, run this command
 
 ```shell
-sudo journalctl -u mocavision.service -f
+sudo journalctl -u mocavis-edge.service -f
 ```

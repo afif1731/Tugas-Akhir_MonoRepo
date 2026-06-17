@@ -42,6 +42,12 @@ class CameraStream:
                     time.sleep(0.1)
                 continue
                 
+            # Filter completely gray or corrupt frames commonly found in H.265 RTSP streams
+            if isinstance(self.src, str) and self.src.startswith("rtsp"):
+                _, std = cv2.meanStdDev(frame)
+                if std[0][0] < 5.0 and std[1][0] < 5.0 and std[2][0] < 5.0:
+                    continue
+                
             with self.lock:
                 self.ret = ret
                 self.frame = frame
