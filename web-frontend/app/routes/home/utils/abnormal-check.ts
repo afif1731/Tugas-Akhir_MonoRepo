@@ -14,7 +14,7 @@ export function abnormalCheck(event: ViolenceEvent) {
       [ViolenceEventLabel.analyzing, ViolenceEventLabel.normal_event] as IViolenceEventLabel[]
     ).includes(event.label)
   ) {
-    if (USE_GLOBAL_VIOLENCE_THRESHOLD === true) {
+    if (USE_GLOBAL_VIOLENCE_THRESHOLD) {
       if (event.confidence > VIOLENCE_GLOBAL_CONFIDENCE_THRESHOLD) return true;
       return false;
     }

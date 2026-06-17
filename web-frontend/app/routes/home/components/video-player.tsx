@@ -223,8 +223,9 @@ function VideoPlayer({
             >
               {(() => {
                 const abnormal = eventData.events.find((e) => abnormalCheck(e));
-                const displayEvent = abnormal || eventData.events[0];
-                return `${ViolenceEventLabelMap[displayEvent.label]} (${(displayEvent.confidence * 100).toFixed(1)}%)`;
+                const displayEvent =
+                  abnormal || eventData.events.find((e) => e.label === 'normal_event') || undefined;
+                return `${ViolenceEventLabelMap[displayEvent?.label || 'normal_event']}${displayEvent ? ` (${(displayEvent.confidence * 100).toFixed(1)}%)` : ''}`;
               })()}
             </Text>
           )}
