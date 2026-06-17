@@ -145,7 +145,8 @@ def handle_client(conn, addr):
             t_read = time.time()
             
             if not ret:
-                time.sleep(0.01)
+                logger.warning(f"[{camera_id}] Failed to read frame from camera. Waiting...")
+                time.sleep(1.0)
                 continue
 
             frame = cv2.resize(frame, (FRAME_SIZE, FRAME_SIZE))
