@@ -67,7 +67,8 @@ LIVEKIT_URL="ws://localhost:7880"
 LIVEKIT_DEVICE_SECRET="supersecretvalue"
 
 YOLO_FILE="yolov8n-pose_full_integer_quant_edgetpu.tflite"
-GCN_FILE="GCN_LSTM_best_int8_edgetpu.tflite"
+GNN_BACKBONE_FILE="GNN_TCN_backbone_best_int8_edgetpu.tflite"
+GNN_HEAD_FILE="GNN_TCN_head_best_int8.tflite"
 ```
 
 7. Run the AI Model using Coral's build-in python 3.7

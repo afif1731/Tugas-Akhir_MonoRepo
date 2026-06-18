@@ -211,7 +211,7 @@ function VideoPlayer({
           isAbnormal ? 'ring-4 ring-red-500' : 'ring-0 ring-teal-800 hover:ring-4'
         )}
       />
-      {eventData && (
+      {eventData && (show_box || show_skeleton) && (
         <>
           {eventData.events && eventData.events.length > 0 && (
             <Text
