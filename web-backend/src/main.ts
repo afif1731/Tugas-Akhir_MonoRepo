@@ -20,7 +20,7 @@ import {
   SuccessResponse,
   whatsappClient,
 } from './common';
-import { livekitListener } from './livekit/listener';
+import { livekitListener } from './livekit-consumer/listener';
 import { systemCronjobs } from './utils';
 
 const nodeEnv = process.env['NODE_ENV'] || 'development';

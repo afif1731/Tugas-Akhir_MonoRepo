@@ -2,7 +2,7 @@ import { StatusCodes } from 'http-status-codes';
 import { validate as isValidUuid } from 'uuid';
 
 import { ErrorResponse, prisma } from '@/common';
-import { livekitListener } from '@/livekit/listener';
+import { livekitListener } from '@/livekit-consumer/listener';
 import { paginate } from '@/utils';
 import { type DetectedAnomalies } from '~/generated/prisma/client';
 import {

@@ -12,6 +12,7 @@ import {
   LiveKitConfig,
   prisma,
 } from '@/common';
+import { LiveKitPublisher } from '@/livekit-consumer/publisher';
 import { createSlug, paginate } from '@/utils';
 import { type EdgeDevices } from '~/generated/prisma/client';
 import {
@@ -274,9 +275,28 @@ export abstract class EdgeDeviceService {
   }
 
   static async deleteDevice(device_id: string) {
-    await this.isDeviceExist(device_id);
+    const device = await prisma.edgeDevices.findUnique({
+      where: { id: device_id },
+      select: {
+        cameras: {
+          where: {
+            status: 'ONLINE',
+          },
+          select: { id: true },
+        },
+      },
+    });
+
+    if (!device)
+      throw new ErrorResponse(StatusCodes.NOT_FOUND, 'Device not found');
 
     await prisma.edgeDevices.delete({ where: { id: device_id } });
+
+    for (const camera of device.cameras) {
+      await LiveKitPublisher.cameraDelete(device_id, {
+        camera_id: camera.id,
+      });
+    }
 
     return true;
   }

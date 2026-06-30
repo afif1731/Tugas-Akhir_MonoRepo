@@ -4,6 +4,7 @@ import logging
 from livekit.rtc import DataPacket
 
 from .service.camera_service import CameraService
+from .service.device_service import DeviceService
 from lib.lib_app.livekit_message_publish import publish_device_status
 
 logger = logging.getLogger(__name__)
@@ -14,7 +15,10 @@ async def route_backend_request(payload: dict, app_context: dict):
     data = payload.get('data', {})
 
     if service == 'CAMERA':
-        if method == 'patch':
+        if method == 'create':
+            await CameraService.create(data, app_context)
+            return
+        elif method == 'patch':
             await CameraService.patch(data, app_context)
             return
         elif method == 'delete':
@@ -25,7 +29,15 @@ async def route_backend_request(payload: dict, app_context: dict):
             return
     
     elif service == 'DEVICE':
-        return
+        if method == 'ai-shutdown':
+            await DeviceService.ai_shutdown(data, app_context)
+            return
+        elif method == 'ai-activate':
+            await DeviceService.ai_activate(data, app_context)
+            return
+        else:
+            logger.warning(f"Method {method} not recognized for service DEVICE")
+            return
     
     else:
         logger.warning(f"Service {service} not recognized")

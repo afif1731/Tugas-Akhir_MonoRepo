@@ -107,9 +107,14 @@ def handle_client(conn, addr):
         gnn_backbone_path = os.path.join(base_dir, "_model", gnn_backbone_file)
         gnn_head_path = os.path.join(base_dir, "_model", gnn_head_file)
         
-        yolo_interpreter = load_interpreter(yolo_path, "YOLO Pose")
-        gnn_backbone_interpreter = load_interpreter(gnn_backbone_path, "GNN-TCN Backbone")
-        gnn_head_interpreter = load_interpreter(gnn_head_path, "GNN-TCN Head")
+        run_ai = config.get('run_ai', True)
+        
+        if run_ai:
+            yolo_interpreter = load_interpreter(yolo_path, "YOLO Pose")
+            gnn_backbone_interpreter = load_interpreter(gnn_backbone_path, "GNN-TCN Backbone")
+            gnn_head_interpreter = load_interpreter(gnn_head_path, "GNN-TCN Head")
+        else:
+            logger.info(f"[{camera_id}] AI Inference is disabled.")
 
         if source_type == 'LOCAL':
             cap = CameraStream(int(input_source), is_static_file=False)
@@ -155,116 +160,121 @@ def handle_client(conn, addr):
             frame = cv2.resize(frame, (FRAME_SIZE, FRAME_SIZE))
             t_resize = time.time()
             
-            # --- PROSES YOLO POSE ---
-            people = yolo_pose_extraction(
-                yolo_interpreter=yolo_interpreter,
-                frame=frame,
-                conf_thresh=YOLO_PERSON_CONFIDENCE_THRESHOLD,
-                iou_thresh=YOLO_IOU_THRESHOLD,
-                imgsz=YOLO_IMGSZ
-            )
-            t_yolo = time.time()
-            
-            # --- INDIVIDUAL TRACKING ---
-            all_pelvis = [p["pelvis"] for p in people]
-            tracked_individuals = individual_tracker.update(all_pelvis)
-            for idx, person in enumerate(people):
-                person["individual_id"] = tracked_individuals.get(idx, -1)
-            
-            clusters = spatial_clustering(
-                people=people,
-                max_distance=SPATIAL_CLUSTERING_MAX_DISTANCE
-            )
-            
-            cluster_centroids = []
-            for cluster in clusters:
-                cx = sum(p["pelvis"][0] for p in cluster) / len(cluster)
-                cy = sum(p["pelvis"][1] for p in cluster) / len(cluster)
-                cluster_centroids.append([cx, cy])
-                
-            tracked = tracker.update(cluster_centroids)
             events = []
-            
-            active_ind_ids = set(individual_tracker.objects.keys())
-            
-            for cluster_idx, object_id in tracked.items():
-                if object_id not in cluster_buffers:
-                    cluster_buffers[object_id] = deque(maxlen=t_frames)
-                    cluster_labels[object_id] = {"label": "analyzing", "conf": 0.0}
-                    cluster_slot_assignment[object_id] = {}
-                    
-                cluster_people = clusters[cluster_idx]
+            if run_ai:
+                # --- PROSES YOLO POSE ---
+                people = yolo_pose_extraction(
+                    yolo_interpreter=yolo_interpreter,
+                    frame=frame,
+                    conf_thresh=YOLO_PERSON_CONFIDENCE_THRESHOLD,
+                    iou_thresh=YOLO_IOU_THRESHOLD,
+                    imgsz=YOLO_IMGSZ
+                )
+                t_yolo = time.time()
                 
-                slot_assignment = cluster_slot_assignment[object_id]
+                # --- INDIVIDUAL TRACKING ---
+                all_pelvis = [p["pelvis"] for p in people]
+                tracked_individuals = individual_tracker.update(all_pelvis)
+                for idx, person in enumerate(people):
+                    person["individual_id"] = tracked_individuals.get(idx, -1)
                 
-                # Prune old individuals
-                for ind_id in list(slot_assignment.keys()):
-                    if ind_id not in active_ind_ids:
-                        del slot_assignment[ind_id]
-                        
-                used_slots = set(slot_assignment.values())
-                
-                # Assign new individuals
-                for person in cluster_people:
-                    ind_id = person["individual_id"]
-                    if ind_id == -1:
-                        continue
-                    if ind_id not in slot_assignment:
-                        for slot in range(m_people):
-                            if slot not in used_slots:
-                                slot_assignment[ind_id] = slot
-                                used_slots.add(slot)
-                                break
-                                
-                frame_pose_data = np.zeros((3, v_joints, m_people))
-                absolute_skeletons = []
-                
-                for person in cluster_people:
-                    ind_id = person["individual_id"]
-                    if ind_id in slot_assignment:
-                        m = slot_assignment[ind_id]
-                        if m < m_people:
-                            frame_pose_data[:, :, m] = person["relative_kpts"]
-                            # [DEBUG HACK] Duplikat orang ini ke slot M lainnya agar tidak ada nol
-                            for temp_m in range(m_people):
-                                if temp_m != m:
-                                    frame_pose_data[:, :, temp_m] = person["relative_kpts"]
-                    
-                    absolute_skeletons.append({
-                        "box": person["box"],
-                        "keypoints": person["keypoints"]
-                    })
-                
-                cluster_buffers[object_id].append(frame_pose_data)
-                
-                # --- PROSES GCN-TCN ---
-                new_label, new_conf, all_conf = gnn_classification(
-                    classes,
-                    gnn_backbone_interpreter,
-                    gnn_head_interpreter,
-                    cluster_buffers[object_id],
-                    frame_count,
-                    t_frames
+                clusters = spatial_clustering(
+                    people=people,
+                    max_distance=SPATIAL_CLUSTERING_MAX_DISTANCE
                 )
                 
-                if new_label is not None and new_conf is not None:
-                    cluster_labels[object_id]["label"] = new_label
-                    cluster_labels[object_id]["conf"] = new_conf
+                cluster_centroids = []
+                for cluster in clusters:
+                    cx = sum(p["pelvis"][0] for p in cluster) / len(cluster)
+                    cy = sum(p["pelvis"][1] for p in cluster) / len(cluster)
+                    cluster_centroids.append([cx, cy])
                     
-                    log_str = ", ".join([f"{k}: {v:.3f}" for k, v in all_conf.items()])
-                    logger.info(f"[{camera_id}] GCN Output Group {object_id} -> {log_str}")
+                tracked = tracker.update(cluster_centroids)
+                
+                active_ind_ids = set(individual_tracker.objects.keys())
+                
+                for cluster_idx, object_id in tracked.items():
+                    if object_id not in cluster_buffers:
+                        cluster_buffers[object_id] = deque(maxlen=t_frames)
+                        cluster_labels[object_id] = {"label": "analyzing", "conf": 0.0}
+                        cluster_slot_assignment[object_id] = {}
+                        
+                    cluster_people = clusters[cluster_idx]
                     
-                current_label = cluster_labels[object_id]["label"]
-                current_conf = cluster_labels[object_id]["conf"]
+                    slot_assignment = cluster_slot_assignment[object_id]
+                    
+                    # Prune old individuals
+                    for ind_id in list(slot_assignment.keys()):
+                        if ind_id not in active_ind_ids:
+                            del slot_assignment[ind_id]
+                            
+                    used_slots = set(slot_assignment.values())
+                    
+                    # Assign new individuals
+                    for person in cluster_people:
+                        ind_id = person["individual_id"]
+                        if ind_id == -1:
+                            continue
+                        if ind_id not in slot_assignment:
+                            for slot in range(m_people):
+                                if slot not in used_slots:
+                                    slot_assignment[ind_id] = slot
+                                    used_slots.add(slot)
+                                    break
+                                    
+                    frame_pose_data = np.zeros((3, v_joints, m_people))
+                    absolute_skeletons = []
+                    
+                    for person in cluster_people:
+                        ind_id = person["individual_id"]
+                        if ind_id in slot_assignment:
+                            m = slot_assignment[ind_id]
+                            if m < m_people:
+                                frame_pose_data[:, :, m] = person["relative_kpts"]
+                                # [DEBUG HACK] Duplikat orang ini ke slot M lainnya agar tidak ada nol
+                                for temp_m in range(m_people):
+                                    if temp_m != m:
+                                        frame_pose_data[:, :, temp_m] = person["relative_kpts"]
+                        
+                        absolute_skeletons.append({
+                            "box": person["box"],
+                            "keypoints": person["keypoints"]
+                        })
+                    
+                    cluster_buffers[object_id].append(frame_pose_data)
+                    
+                    # --- PROSES GCN-TCN ---
+                    new_label, new_conf, all_conf = gnn_classification(
+                        classes,
+                        gnn_backbone_interpreter,
+                        gnn_head_interpreter,
+                        cluster_buffers[object_id],
+                        frame_count,
+                        t_frames
+                    )
+                    
+                    if new_label is not None and new_conf is not None:
+                        cluster_labels[object_id]["label"] = new_label
+                        cluster_labels[object_id]["conf"] = new_conf
+                        
+                        log_str = ", ".join([f"{k}: {v:.3f}" for k, v in all_conf.items()])
+                        logger.info(f"[{camera_id}] GCN Output Group {object_id} -> {log_str}")
+                        
+                    current_label = cluster_labels[object_id]["label"]
+                    current_conf = cluster_labels[object_id]["conf"]
+                    
+                    events.append({
+                        "group_id": object_id,
+                        "label": current_label,
+                        "confidence": round(current_conf, 2),
+                        "skeletons": absolute_skeletons
+                    })
+            else:
+                # Mock minimal elapsed times for logging
+                t_yolo = time.time()
+                t_gcn = time.time()
                 
-                events.append({
-                    "group_id": object_id,
-                    "label": current_label,
-                    "confidence": round(current_conf, 2),
-                    "skeletons": absolute_skeletons
-                })
-                
-            active_object_ids = set(tracked.values())
+            active_object_ids = set(tracked.values()) if run_ai else set()
             for obj_id in list(cluster_buffers.keys()):
                 if obj_id not in active_object_ids and obj_id not in tracker.objects:
                     del cluster_buffers[obj_id]
@@ -272,7 +282,8 @@ def handle_client(conn, addr):
                     if obj_id in cluster_slot_assignment:
                         del cluster_slot_assignment[obj_id]
                     
-            t_gcn = time.time()
+            if run_ai:
+                t_gcn = time.time()
                     
             # Encode frame to JPEG
             ret, jpeg = cv2.imencode('.jpg', frame, encode_param)

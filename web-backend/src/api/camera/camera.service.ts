@@ -3,6 +3,7 @@ import { StatusCodes } from 'http-status-codes';
 import { validate as isValidUuid } from 'uuid';
 
 import { ErrorResponse, LiveKitConfig, prisma } from '@/common';
+import { LiveKitPublisher } from '@/livekit-consumer/publisher';
 import {
   createSlug,
   encryptTextToAES256,
@@ -88,8 +89,26 @@ export abstract class CameraService {
       },
       select: {
         id: true,
+        source: true,
+        source_type: true,
+        rtsp_username: true,
+        rtsp_password: true,
+        rtsp_iv: true,
+        rtsp_authtag: true,
       },
     });
+
+    if (data.device_id) {
+      await LiveKitPublisher.cameraCreate(data.device_id, {
+        camera_id: newCamera.id,
+        source: newCamera.source,
+        source_type: newCamera.source_type,
+        rtsp_username: newCamera.rtsp_username,
+        rtsp_password: newCamera.rtsp_password,
+        rtsp_iv: newCamera.rtsp_iv,
+        rtsp_authtag: newCamera.rtsp_authtag,
+      });
+    }
 
     return { id: newCamera.id };
   }
@@ -241,7 +260,7 @@ export abstract class CameraService {
       rtspAuthTag = encryptedPasswordObject.authTag;
     }
 
-    await prisma.cameras.update({
+    const updatedCamera = await prisma.cameras.update({
       where: { id: camera_id },
       data: {
         name: data.name,
@@ -257,7 +276,78 @@ export abstract class CameraService {
         status: data.status,
         error_message: errorObject,
       },
+      select: {
+        id: true,
+        source: true,
+        source_type: true,
+        rtsp_username: true,
+        rtsp_password: true,
+        rtsp_iv: true,
+        rtsp_authtag: true,
+        status: true,
+      },
     });
+
+    if (currentCamera.edge_device_id) {
+      if (data.device_id && currentCamera.edge_device_id !== data.device_id) {
+        await LiveKitPublisher.cameraDelete(currentCamera.edge_device_id, {
+          camera_id,
+        });
+        await LiveKitPublisher.cameraCreate(data.device_id, {
+          camera_id: updatedCamera.id,
+          source: updatedCamera.source,
+          source_type: updatedCamera.source_type,
+          rtsp_username: updatedCamera.rtsp_username,
+          rtsp_password: updatedCamera.rtsp_password,
+          rtsp_iv: updatedCamera.rtsp_iv,
+          rtsp_authtag: updatedCamera.rtsp_authtag,
+        });
+      } else if (data.device_id === null) {
+        await LiveKitPublisher.cameraDelete(currentCamera.edge_device_id, {
+          camera_id,
+        });
+      } else {
+        if (currentCamera.status === 'ONLINE') {
+          if (data.status === 'ONLINE') {
+            if (data.source || data.source_type) {
+              await LiveKitPublisher.cameraPatch(currentCamera.edge_device_id, {
+                camera_id: updatedCamera.id,
+                source: updatedCamera.source,
+                source_type: updatedCamera.source_type,
+                rtsp_username: updatedCamera.rtsp_username,
+                rtsp_password: updatedCamera.rtsp_password,
+                rtsp_iv: updatedCamera.rtsp_iv,
+                rtsp_authtag: updatedCamera.rtsp_authtag,
+              });
+            }
+          } else {
+            await LiveKitPublisher.cameraDelete(currentCamera.edge_device_id, {
+              camera_id,
+            });
+          }
+        } else if (data.status === 'ONLINE') {
+          await LiveKitPublisher.cameraCreate(currentCamera.edge_device_id, {
+            camera_id: updatedCamera.id,
+            source: updatedCamera.source,
+            source_type: updatedCamera.source_type,
+            rtsp_username: updatedCamera.rtsp_username,
+            rtsp_password: updatedCamera.rtsp_password,
+            rtsp_iv: updatedCamera.rtsp_iv,
+            rtsp_authtag: updatedCamera.rtsp_authtag,
+          });
+        }
+      }
+    } else if (data.device_id && updatedCamera.status === 'ONLINE') {
+      await LiveKitPublisher.cameraCreate(data.device_id, {
+        camera_id: updatedCamera.id,
+        source: updatedCamera.source,
+        source_type: updatedCamera.source_type,
+        rtsp_username: updatedCamera.rtsp_username,
+        rtsp_password: updatedCamera.rtsp_password,
+        rtsp_iv: updatedCamera.rtsp_iv,
+        rtsp_authtag: updatedCamera.rtsp_authtag,
+      });
+    }
 
     return true;
   }
@@ -278,6 +368,7 @@ export abstract class CameraService {
         source: true,
         source_type: true,
         edge_device_id: true,
+        status: true,
       },
     });
 

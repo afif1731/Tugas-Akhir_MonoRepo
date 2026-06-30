@@ -139,7 +139,8 @@ async def main():
         'cameras': CAMERAS,
         'room': room,
         'config': CONFIG,
-        'backend_url': BACKEND_URL
+        'backend_url': BACKEND_URL,
+        'device_secret': DEVICE_SECRET
     }
 
     @room.on("data_received")
