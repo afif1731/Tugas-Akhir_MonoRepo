@@ -3,8 +3,8 @@ module.exports = {
     {
       name: 'mocavis-be',
       cwd: '~/MOCA-Vision/web-backend',
-      script: 'bun start:prod',
-      interpreter: 'bun',
+      script: 'bun',
+      args: 'start',
       max_memory_restart: '100M',
       cron_restart: '0 3 * * *', // Restart every 3 AM
       autorestart: true,
@@ -15,8 +15,8 @@ module.exports = {
     {
       name: 'mocavis-fe',
       cwd: '~/MOCA-Vision/web-frontend',
-      script: 'bun preview:prod',
-      interpreter: 'bun',
+      script: 'bun',
+      args: 'run preview:prod',
       max_memory_restart: '500M',
       autorestart: true,
       watch: false,
