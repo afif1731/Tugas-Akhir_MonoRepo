@@ -288,9 +288,11 @@ livekitListener.connect().catch(error => {
 });
 
 process.on('SIGINT', () => {
+  whatsappClient.destroy();
   app.stop();
 });
 
 process.on('SIGTERM', () => {
+  whatsappClient.destroy();
   app.stop();
 });

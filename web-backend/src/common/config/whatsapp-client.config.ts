@@ -8,7 +8,18 @@ const whatsappClient = new Client({
     clientId: ReporterConfig.Whatsapp.CLIENT_ID,
     dataPath: '../.wawebjs-auth',
   }),
-  puppeteer: { args: ['--no-sandbox', '--disable-setuid-sandbox'] },
+  puppeteer: {
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--no-first-run',
+      '--no-zygote',
+      '--disable-gpu',
+    ],
+  },
 });
 
 whatsappClient.on('qr', qr => {
@@ -27,6 +38,14 @@ whatsappClient.on('message', async message => {
       '*PONG!*\n\n' + `Chat Id: ${message.from}\n` + `_sent at ${new Date()}_`, // eslint-disable-line @typescript-eslint/restrict-template-expressions
     );
   }
+});
+
+whatsappClient.on('disconnected', reason => {
+  console.error('Whatsapp Client disconnected', reason);
+});
+
+whatsappClient.on('auth_failure', message => {
+  console.error('Failed to authenticate', message);
 });
 
 export { whatsappClient };
