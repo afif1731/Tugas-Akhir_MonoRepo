@@ -25,9 +25,11 @@ export const systemSettingsSeed = async () => {
           id: data.id,
           video_retention_days: Number.parseInt(data.video_retention_days),
           report_auto_send_wa: data.report_auto_send_wa === 'true',
+          report_auto_send_email: data.report_auto_send_email === 'true',
         },
         update: {
           video_retention_days: Number.parseInt(data.video_retention_days),
+          report_auto_send_wa: data.report_auto_send_wa === 'true',
           report_auto_send_email: data.report_auto_send_email === 'true',
         },
       });
