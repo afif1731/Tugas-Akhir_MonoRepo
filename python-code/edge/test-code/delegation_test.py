@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import csv
 import argparse
 import logging
 import cv2
@@ -87,7 +88,7 @@ def attach_time_tracker(interpreter, timings_list):
         return res
     interpreter.invoke = MethodType(patched_invoke, interpreter)
 
-def run_pipeline(video_path, yolo_path, bb_path, head_path, delegation):
+def run_pipeline(video_path, yolo_path, bb_path, head_path, delegation, out_dir):
     yolo_interpreter = load_interpreter(yolo_path, "YOLO", delegation)
     bb_interpreter = load_interpreter(bb_path, "Backbone", delegation)
     head_interpreter = load_interpreter(head_path, "Head", delegation)
@@ -95,6 +96,10 @@ def run_pipeline(video_path, yolo_path, bb_path, head_path, delegation):
     if not yolo_interpreter or not bb_interpreter or not head_interpreter:
         logger.error(f"Skipping {delegation['name']} due to model load failure.")
         return None
+
+    all_yolo_times = []
+    all_bb_times = []
+    all_head_times = []
 
     yolo_times = []
     bb_times = []
@@ -126,7 +131,16 @@ def run_pipeline(video_path, yolo_path, bb_path, head_path, delegation):
     
     logger.info(f"Starting pipeline inference for {delegation['name']}...")
     
+    csv_path = out_dir / f"delegation_{delegation['name']}_results.csv"
+    csv_file = open(csv_path, 'w', newline='')
+    csv_writer = csv.writer(csv_file)
+    csv_writer.writerow(['frame', 'yolo_inference', 'backbone_inference', 'head_inference'])
+    
     while cap.isOpened():
+        yolo_times.clear()
+        bb_times.clear()
+        head_times.clear()
+
         ret, frame = cap.read()
         if not ret:
             break
@@ -214,16 +228,27 @@ def run_pipeline(video_path, yolo_path, bb_path, head_path, delegation):
                 if obj_id in cluster_slot_assignment:
                     del cluster_slot_assignment[obj_id]
                     
+        current_yolo = sum(yolo_times) if yolo_times else 0.0
+        current_bb = sum(bb_times) if bb_times else 0.0
+        current_head = sum(head_times) if head_times else 0.0
+        
+        csv_writer.writerow([frame_count + 1, current_yolo, current_bb, current_head])
+        
+        all_yolo_times.extend(yolo_times)
+        all_bb_times.extend(bb_times)
+        all_head_times.extend(head_times)
+                    
         frame_count += 1
         if frame_count % 50 == 0:
             logger.info(f"[{delegation['name']}] Processed {frame_count} frames...")
             
     cap.release()
+    csv_file.close()
     
     # Hitung Rata-rata
-    avg_yolo = sum(yolo_times) / len(yolo_times) if yolo_times else 0
-    avg_bb = sum(bb_times) / len(bb_times) if bb_times else 0
-    avg_head = sum(head_times) / len(head_times) if head_times else 0
+    avg_yolo = sum(all_yolo_times) / len(all_yolo_times) if all_yolo_times else 0
+    avg_bb = sum(all_bb_times) / len(all_bb_times) if all_bb_times else 0
+    avg_head = sum(all_head_times) / len(all_head_times) if all_head_times else 0
     
     logger.info(f"Finished {delegation['name']}. Avg YOLO: {avg_yolo:.2f}ms, BB: {avg_bb:.2f}ms, Head: {avg_head:.2f}ms")
     
@@ -267,17 +292,17 @@ def main():
         {"name": "CPU_4_Threads", "use_delegate": False, "num_threads": 4},
     ]
     
+    result_dir = base_dir / args.out_dir
+    result_dir.mkdir(parents=True, exist_ok=True)
+
     results = []
     
     for dele in delegations:
-        res = run_pipeline(args.video, yolo_path, bb_path, head_path, dele)
+        res = run_pipeline(args.video, yolo_path, bb_path, head_path, dele, result_dir)
         if res:
             results.append(res)
             
     # Tulis hasil summary txt
-    result_dir = base_dir / args.out_dir
-    result_dir.mkdir(parents=True, exist_ok=True)
-    
     summary_path = result_dir / 'delegation_summary.txt'
     if results:
         with open(summary_path, 'w') as f:
