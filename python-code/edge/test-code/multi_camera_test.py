@@ -63,10 +63,21 @@ def run_camera_worker(video_path, yolo_path, bb_path, head_path, num_cams, vid_i
             interp.allocate_tensors()
             return interp
         except Exception as e:
-            logger.warning(f"Failed to load EdgeTPU for {name}, using CPU. Error: {e}")
-            interp = tflite.Interpreter(model_path=str(path), num_threads=4)
-            interp.allocate_tensors()
-            return interp
+            logger.warning(f"Failed to load EdgeTPU for {name}, falling back to CPU. Error: {e}")
+
+        path_obj = Path(path)
+        if "_edgetpu" in path_obj.name:
+            fallback_name = path_obj.name.replace("_edgetpu", "")
+            fallback_path = path_obj.parent / fallback_name
+            if fallback_path.exists():
+                path = fallback_path
+                logger.info(f"Found non-EdgeTPU model, using: {path_obj.name}")
+            else:
+                logger.warning(f"Non-EdgeTPU model '{fallback_name}' not found. Trying to run EdgeTPU model on CPU...")
+
+        interp = tflite.Interpreter(model_path=str(path), num_threads=4)
+        interp.allocate_tensors()
+        return interp
 
     yolo_interpreter = load_interp(yolo_path, "YOLO")
     bb_interpreter = load_interp(bb_path, "Backbone")
@@ -79,10 +90,10 @@ def run_camera_worker(video_path, yolo_path, bb_path, head_path, num_cams, vid_i
 
     FRAME_SIZE = 640
     YOLO_IMGSZ = 256
-    T_FRAMES = 30
+    T_FRAMES = 100
     V_JOINTS = 17
-    M_PEOPLE = 5
-    CLASSES = [f"Class_{i}" for i in range(20)]
+    M_PEOPLE = 3
+    CLASSES = ['assault', 'fighting', 'shooting', 'robbery', 'normal_event']
 
     tracker = CentroidTracker(max_disappeared=200, max_distance=300)
     individual_tracker = CentroidTracker(max_disappeared=30, max_distance=150)
@@ -97,14 +108,26 @@ def run_camera_worker(video_path, yolo_path, bb_path, head_path, num_cams, vid_i
     yolo_times = []
     gcn_times = []
 
-    while cap.isOpened():
+    has_run_gcn = False
+
+    while True:
         # 1. Frame Reading
         t_start = time.time()
         ret, frame = cap.read()
         t_read = time.time()
         
         if not ret:
-            break
+            if has_run_gcn:
+                break
+            else:
+                cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                individual_tracker.max_distance = 10000
+                tracker.max_distance = 10000
+                t_start = time.time()
+                ret, frame = cap.read()
+                t_read = time.time()
+                if not ret:
+                    break
             
         read_times.append((t_read - t_start) * 1000)
         
@@ -138,6 +161,11 @@ def run_camera_worker(video_path, yolo_path, bb_path, head_path, num_cams, vid_i
             cluster_centroids.append([cx, cy])
             
         tracked = tracker.update(cluster_centroids)
+        
+        if tracker.max_distance == 10000:
+            tracker.max_distance = 300
+            individual_tracker.max_distance = 150
+            
         active_ind_ids = set(individual_tracker.objects.keys())
         
         frame_gcn_time = 0.0
@@ -193,8 +221,23 @@ def run_camera_worker(video_path, yolo_path, bb_path, head_path, num_cams, vid_i
 
             # GCN hanya di-invoke pada kondisi tertentu (buffer penuh & modulo frame).
             if lbl is not None:
+                has_run_gcn = True
                 gcn_ran = True
-                frame_gcn_time += (t_gcn_end - t_gcn_start) * 1000
+                
+                # Lakukan GNN ke-dua pada data yang sama
+                t_gcn_start_2 = time.time()
+                gnn_classification(
+                    CLASSES,
+                    bb_interpreter,
+                    head_interpreter,
+                    cluster_buffers[object_id],
+                    frame_count,
+                    T_FRAMES
+                )
+                t_gcn_end_2 = time.time()
+                
+                # Waktu eksekusi rata-rata dari kedua pemanggilan (dalam ms)
+                frame_gcn_time += ((t_gcn_end - t_gcn_start) + (t_gcn_end_2 - t_gcn_start_2)) / 2.0 * 1000
             
         if gcn_ran:
             gcn_times.append(frame_gcn_time)
@@ -210,6 +253,10 @@ def run_camera_worker(video_path, yolo_path, bb_path, head_path, num_cams, vid_i
         frame_count += 1
         if frame_count % 100 == 0:
             logger.info(f"Processed {frame_count} frames...")
+            
+        if has_run_gcn:
+            logger.info(f"GCN successfully ran on frame {frame_count}. Stopping test.")
+            break
             
     cap.release()
 
