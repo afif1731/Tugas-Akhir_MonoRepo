@@ -1,17 +1,10 @@
-import Redis from 'ioredis';
-
-import { RedisConfig } from '../common/config/redis.config';
+/* eslint-disable @typescript-eslint/require-await */
+/* eslint-disable @typescript-eslint/no-floating-promises */
+import { type Buffer } from 'node:buffer';
 
 export class FrameStorageService {
-  private redis: Redis;
-
-  constructor() {
-    if (!RedisConfig.url) {
-      throw new Error('REDIS_URL is not defined in the configuration');
-    }
-
-    this.redis = new Redis(RedisConfig.url);
-  }
+  private store = new Map<string, Buffer[]>();
+  private timers = new Map<string, NodeJS.Timeout>();
 
   /**
    * Menyimpan frame baru untuk suatu track.
@@ -20,23 +13,34 @@ export class FrameStorageService {
    * - Mengatur waktu kadaluarsa (TTL) menjadi 60 detik. Jika tidak ada frame baru selama 1 menit, otomatis dihapus.
    *
    * @param trackId Nama track (contoh: track_{camera_id})
-   * @param frameData Data frame (bisa berupa Base64 string, URL, atau binary buffer)
+   * @param frameData Data frame
    */
   async saveFrame(trackId: string, frameData: string | Buffer): Promise<void> {
-    const key = `livekit:track_frames:${trackId}`;
+    if (!this.store.has(trackId)) {
+      this.store.set(trackId, []);
+    }
 
-    const pipeline = this.redis.pipeline();
+    const frames = this.store.get(trackId)!;
 
     // Masukkan frame terbaru di awal list
-    pipeline.lpush(key, frameData);
+    frames.unshift(frameData as Buffer);
 
-    // Pertahankan hanya 100 frame terbaru (index 0 sampai 99)
-    pipeline.ltrim(key, 0, 99);
+    // Pertahankan hanya 100 frame terbaru
+    if (frames.length > 100) {
+      frames.pop();
+    }
 
     // Reset TTL list menjadi 60 detik setiap ada frame baru masuk
-    pipeline.expire(key, 60);
+    if (this.timers.has(trackId)) {
+      clearTimeout(this.timers.get(trackId));
+    }
 
-    await pipeline.exec();
+    this.timers.set(
+      trackId,
+      setTimeout(() => {
+        this.clearTrack(trackId);
+      }, 60_000),
+    );
   }
 
   /**
@@ -45,9 +49,9 @@ export class FrameStorageService {
    * @returns Array berisi data frame
    */
   async getFrames(trackId: string): Promise<Buffer[]> {
-    const key = `livekit:track_frames:${trackId}`;
+    const frames = this.store.get(trackId) || [];
 
-    return await this.redis.lrangeBuffer(key, 0, 99);
+    return [...frames];
   }
 
   /**
@@ -55,8 +59,12 @@ export class FrameStorageService {
    * @param trackId Nama track
    */
   async clearTrack(trackId: string): Promise<void> {
-    const key = `livekit:track_frames:${trackId}`;
-    await this.redis.del(key);
+    this.store.delete(trackId);
+
+    if (this.timers.has(trackId)) {
+      clearTimeout(this.timers.get(trackId));
+      this.timers.delete(trackId);
+    }
   }
 }
 

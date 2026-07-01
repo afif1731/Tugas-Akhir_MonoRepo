@@ -205,7 +205,7 @@ export class LivekitListener {
         recentRecording.created_at.getTime() + 60_000 < currentDate.getTime()
       ) {
         logger.info(
-          `💤 [LiveKit Listener] Violence Recording for camera ${payload.camera_id} is on 1 minute cooldown`,
+          `💤 [LiveKit Listener] Violence Recording for camera ${payload.camera_id} is on 1 minute cooldown (${recentRecording.created_at.getTime() + 60_000 < currentDate.getTime()})`,
         );
 
         return;
@@ -326,12 +326,22 @@ export class LivekitListener {
       }
     });
 
-    // Write all buffers sequentially
+    // Write all buffers sequentially with backpressure handling to prevent data corruption
     for (const frame of session.frames) {
-      ffmpeg.stdin.write(frame);
+      if (ffmpeg.stdin.destroyed) break;
+      const canWrite = ffmpeg.stdin.write(frame);
+
+      if (!canWrite) {
+        await new Promise<void>(resolve => {
+          ffmpeg.stdin.once('drain', resolve);
+          ffmpeg.stdin.once('error', resolve);
+        });
+      }
     }
 
-    ffmpeg.stdin.end();
+    if (!ffmpeg.stdin.destroyed) {
+      ffmpeg.stdin.end();
+    }
   }
 
   private async saveAnomalyToDB(
