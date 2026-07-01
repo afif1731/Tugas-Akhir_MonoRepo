@@ -1,4 +1,6 @@
 // biome-ignore-all lint/suspicious/noExplicitAny: any required for now
+
+import { Trash2Icon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
@@ -93,21 +95,33 @@ export default function FootageDetailPage() {
         isMobile ? 'min-h-lvh' : 'h-screen max-h-screen overflow-y-auto'
       )}
     >
-      <TitleSection title={'Footage Details'} backTo="/footage-log" />
+      <TitleSection
+        title={'Footage Details'}
+        description={`#${anomaly_id}`}
+        backTo="/footage-log"
+      />
 
       <div className="mt-4 flex flex-col gap-6">
         <div className="flex w-full justify-center">
-          <div className="w-full max-w-4xl overflow-hidden rounded-xl bg-black drop-shadow-xl">
-            <Video controls className="h-auto max-h-[60vh] w-full" path={footage.video_path} />
+          <div className="w-full overflow-hidden rounded-xl bg-black drop-shadow-xl">
+            {footage.video_path ? (
+              <Video controls className="h-auto max-h-[60vh] w-full" path={footage.video_path} />
+            ) : (
+              <div className="flex h-auto max-h-[60vh] w-full items-center justify-center">
+                <Text type="h6" weight="semibold" className="text-destructive">
+                  Footage not found or deleted
+                </Text>
+              </div>
+            )}
           </div>
         </div>
 
         <div className="flex flex-col gap-6 rounded-xl bg-white p-6 drop-shadow-md">
-          <Text type="h6" className="font-bold text-slate-800">
+          <Text type="h6" className="font-bold text-teal-800">
             Metadata
           </Text>
 
-          <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-6 md:grid-cols-5">
             <div className="flex flex-col gap-1">
               <Text type="btn" className="font-semibold text-slate-500">
                 Anomaly Type
@@ -163,21 +177,23 @@ export default function FootageDetailPage() {
           </div>
 
           <div className="mt-6 flex flex-row flex-wrap justify-end gap-4">
-            {footage.is_valid ? (
-              <Button
-                onClick={() => handleUpdate(false)}
-                variant="default"
-                className="bg-red-600 text-white hover:bg-red-700"
-              >
-                Mark as Invalid
-              </Button>
-            ) : (
-              <Button onClick={() => handleUpdate(true)} variant="default">
+            {!footage.is_valid && (
+              <Button onClick={() => handleUpdate(true)} variant="outline" colors="teal-800">
                 Mark as Valid
               </Button>
             )}
-            <Button onClick={() => open(confirmDialogId)} variant="default" colors="destructive">
-              Delete Footage
+            {(footage.is_valid || footage.is_valid === undefined) && (
+              <Button onClick={() => handleUpdate(false)} variant="outline" colors="destructive">
+                Mark as Invalid
+              </Button>
+            )}
+            <Button
+              onClick={() => open(confirmDialogId)}
+              variant="default"
+              colors="destructive"
+              leftIcon={<Trash2Icon />}
+            >
+              Delete
             </Button>
           </div>
         </div>

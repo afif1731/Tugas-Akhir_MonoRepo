@@ -13,7 +13,7 @@ export interface ICamera {
 export interface IDetectedAnomaly {
   id: string;
   camera_id?: string;
-  video_path: string;
+  video_path?: string;
   video_duration?: number;
   video_start_date: string;
   video_end_date: string;

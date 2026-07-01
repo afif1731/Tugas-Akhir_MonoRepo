@@ -91,7 +91,7 @@ export default function DeviceDetailPage({ loaderData }: Route.ComponentProps) {
         <div
           className={cn(
             'block w-full bg-slate-100 px-8 py-8',
-            isMobile ? 'min-h-lvh' : 'min-h-svh'
+            isMobile ? 'min-h-lvh' : 'h-screen max-h-screen overflow-y-auto'
           )}
         >
           <TitleSection
@@ -121,7 +121,7 @@ export default function DeviceDetailPage({ loaderData }: Route.ComponentProps) {
                   type="button"
                   variant="outline"
                   className={cn(
-                    'w-full sm:w-auto',
+                    'w-full hover:text-white sm:w-auto',
                     device.status === 'ONLINE'
                       ? 'bg-red-600 text-white hover:bg-red-700'
                       : 'bg-green-600 text-white hover:bg-green-700'
@@ -135,7 +135,7 @@ export default function DeviceDetailPage({ loaderData }: Route.ComponentProps) {
                   <Button
                     type="button"
                     variant="outline"
-                    className="w-full sm:w-auto"
+                    colors="destructive"
                     onClick={() => {
                       reset({
                         name: device.name ?? '',

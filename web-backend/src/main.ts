@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable unicorn/no-process-exit */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-misused-promises */
 import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 
@@ -287,12 +289,27 @@ livekitListener.connect().catch(error => {
   console.error('Failed to start LiveKit Listener on startup:', error);
 });
 
-process.on('SIGINT', () => {
-  whatsappClient.destroy();
-  app.stop();
-});
+const gracefulShutdown = async (signal: string) => {
+  console.log(`Received ${signal}. Starting graceful shutdown...`);
 
-process.on('SIGTERM', () => {
-  whatsappClient.destroy();
-  app.stop();
-});
+  try {
+    console.log('Destroying WhatsApp Client...');
+    await whatsappClient.destroy();
+    console.log('WhatsApp Client destroyed.');
+  } catch (error) {
+    console.error('Error destroying WhatsApp Client:', error);
+  }
+
+  try {
+    console.log('Stopping Elysia server...');
+    await app.stop();
+    console.log('Elysia server stopped.');
+  } catch (error) {
+    console.error('Error stopping server:', error);
+  }
+
+  process.exit(0);
+};
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));

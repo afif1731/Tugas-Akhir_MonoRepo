@@ -37,6 +37,8 @@ export class LivekitListener {
   private room: Room;
   private activeRecordings = new Map<string, RecordingSession>();
 
+  private readonly VIDEO_FPS = 30;
+
   constructor() {
     this.room = new Room();
   }
@@ -148,7 +150,10 @@ export class LivekitListener {
     }
   }
 
-  private async handleViolenceDetection(payload: ViolenceDetectionPayload) {
+  private async handleViolenceDetection(
+    payload: ViolenceDetectionPayload,
+    force_recording: boolean = false,
+  ) {
     if (!payload.events || payload.events.length === 0) return;
 
     let highestConfidence = 0;
@@ -287,8 +292,6 @@ export class LivekitListener {
       }
     }
 
-    const fps = 30;
-
     const ffmpeg = spawn('ffmpeg', [
       '-y',
       '-f',
@@ -300,7 +303,7 @@ export class LivekitListener {
       '-pix_fmt',
       pixFmt,
       '-r',
-      fps.toString(),
+      this.VIDEO_FPS.toString(),
       '-i',
       '-',
       '-c:v',
@@ -310,7 +313,7 @@ export class LivekitListener {
       '-pix_fmt',
       'yuv420p',
       '-r',
-      fps.toString(), // Paksa durasi akhir menjadi persis 6 detik (300 / 50)
+      this.VIDEO_FPS.toString(),
       outputPath,
     ]);
 
@@ -388,9 +391,7 @@ export class LivekitListener {
         }
       }
 
-      // Sama seperti di atas, kita gunakan 50 FPS konstan karena kamera berjalan di kecepatan tersebut.
-      const fps = 50;
-      const duration = Math.round(session.frames.length / fps);
+      const duration = Math.round(session.frames.length / this.VIDEO_FPS);
 
       const camera = await prisma.cameras.findUnique({
         where: { id: session.cameraId },
@@ -478,7 +479,6 @@ export class LivekitListener {
     );
     const dummyPayload: ViolenceDetectionPayload = {
       camera_id: cameraId,
-      fps: 30,
       events: [
         {
           group_id: 1,

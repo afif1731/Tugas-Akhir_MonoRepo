@@ -1,9 +1,10 @@
 import {
   ClapperboardIcon,
   HardDriveIcon,
-  HistoryIcon,
   LayoutGridIcon,
   type LucideIcon,
+  MailIcon,
+  MessageCircleIcon,
   SlidersVerticalIcon,
   TrendingUpIcon,
   TvMinimalIcon,
@@ -74,12 +75,12 @@ export const sidebarItems = [
     userAllowed: false,
     items: [
       {
-        icon: SlidersVerticalIcon,
+        icon: MessageCircleIcon,
         title: 'WA Report',
         href: '/report-wa',
       },
       {
-        icon: HistoryIcon,
+        icon: MailIcon,
         title: 'Email Report',
         href: '/report-email',
       },

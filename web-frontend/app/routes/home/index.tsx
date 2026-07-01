@@ -108,7 +108,7 @@ export default function HomePage({ loaderData }: Route.ComponentProps) {
             size="icon"
             onClick={handlePrev}
             className={cn(
-              'absolute top-1/2 left-4 z-50 hidden h-12 w-12 -translate-y-1/2 rounded-full bg-white/50 shadow-md backdrop-blur-sm transition-opacity duration-300 hover:bg-white lg:flex',
+              'absolute top-1/2 left-4 z-40 hidden h-12 w-12 -translate-y-1/2 rounded-full bg-white/50 shadow-md backdrop-blur-sm transition-opacity duration-300 hover:bg-white lg:flex',
               isIdle ? 'pointer-events-none opacity-0' : 'opacity-100'
             )}
           >
@@ -120,7 +120,7 @@ export default function HomePage({ loaderData }: Route.ComponentProps) {
             size="icon"
             onClick={handleNext}
             className={cn(
-              'absolute top-1/2 right-4 z-50 hidden h-12 w-12 -translate-y-1/2 rounded-full bg-white/50 shadow-md backdrop-blur-sm transition-opacity duration-300 hover:bg-white lg:flex',
+              'absolute top-1/2 right-4 z-40 hidden h-12 w-12 -translate-y-1/2 rounded-full bg-white/50 shadow-md backdrop-blur-sm transition-opacity duration-300 hover:bg-white lg:flex',
               isIdle ? 'pointer-events-none opacity-0' : 'opacity-100'
             )}
           >

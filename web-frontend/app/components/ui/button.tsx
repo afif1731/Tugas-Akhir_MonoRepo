@@ -75,7 +75,7 @@ const buttonVariants = cva(
         variant: 'outline',
         colors: 'destructive',
         className:
-          'border-destructive text-destructive hover:bg-destructive hover:text-teal-950 focus-visible:ring-destructive/20',
+          'border-destructive text-destructive hover:bg-destructive/10 focus-visible:ring-destructive/20',
       },
       {
         variant: 'ghost',

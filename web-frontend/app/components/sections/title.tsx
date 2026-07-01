@@ -42,7 +42,7 @@ export default function TitleSection({
         </Text>
 
         {description && (
-          <Text type="st2" className="font-medium text-moca-base">
+          <Text type="p" className="font-medium text-moca-base">
             {description}
           </Text>
         )}

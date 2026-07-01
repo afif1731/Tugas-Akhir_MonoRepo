@@ -93,6 +93,7 @@ function DeviceCamera({ camera, revalidator }: { camera: IDeviceCamera; revalida
         <Button
           size="icon"
           variant="outline"
+          colors="default"
           disabled={camera.status !== 'ONLINE' || isLoading}
           onClick={handleDummyRecord}
           title="Trigger Dummy Record"

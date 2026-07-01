@@ -24,7 +24,6 @@ export interface ViolenceEvent {
 
 export interface ViolenceDetectionPayload {
   camera_id: string;
-  fps: number;
   events: ViolenceEvent[];
 }
 

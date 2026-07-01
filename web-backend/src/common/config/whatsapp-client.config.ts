@@ -22,9 +22,17 @@ const whatsappClient = new Client({
   },
 });
 
+let qrPrinted = false;
+
 whatsappClient.on('qr', qr => {
-  console.log('WhatsApp QR Code received. Scan to authenticate.');
-  qrcode.generate(qr, { small: true });
+  if (!qrPrinted) {
+    console.log('WhatsApp QR Code received. Scan to authenticate.');
+    qrcode.generate(qr, { small: true });
+    console.log(
+      '⚠️ QR Code will only be displayed once to prevent console spam. If it expires, please restart the server.',
+    );
+    qrPrinted = true;
+  }
 });
 
 whatsappClient.on('ready', () => {
