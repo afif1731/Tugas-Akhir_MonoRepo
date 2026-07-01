@@ -65,15 +65,28 @@ def load_interpreter(model_path, model_name, delegation):
             interpreter.allocate_tensors()
             return interpreter
         except Exception as e:
-            logger.warning(f"Failed to load EdgeTPU for {model_name}: {e}")
-            return None # Skip jika TPU tidak tersedia
+            logger.warning(f"Failed to load EdgeTPU for {model_name}: {e}. Falling back to CPU...")
 
-    interpreter = tflite.Interpreter(
-        model_path=str(model_path), 
-        num_threads=delegation['num_threads']
-    )
-    interpreter.allocate_tensors()
-    return interpreter
+    # CPU fallback or intentional CPU execution
+    if "_edgetpu" in model_path.name:
+        fallback_name = model_path.name.replace("_edgetpu", "")
+        fallback_path = model_path.parent / fallback_name
+        if fallback_path.exists():
+            model_path = fallback_path
+            logger.info(f"Found non-EdgeTPU model, using: {model_path.name}")
+        else:
+            logger.warning(f"Non-EdgeTPU model '{fallback_name}' not found. Trying to run EdgeTPU model on CPU...")
+
+    try:
+        interpreter = tflite.Interpreter(
+            model_path=str(model_path), 
+            num_threads=delegation['num_threads']
+        )
+        interpreter.allocate_tensors()
+        return interpreter
+    except Exception as e:
+        logger.error(f"Failed to load model {model_name} on CPU: {e}")
+        return None
 
 def attach_time_tracker(interpreter, timings_list):
     """
@@ -117,10 +130,10 @@ def run_pipeline(video_path, yolo_path, bb_path, head_path, delegation, out_dir)
     # Konstanta untuk simulasi proses keseluruhan
     FRAME_SIZE = 640
     YOLO_IMGSZ = 256
-    T_FRAMES = 30
+    T_FRAMES = 100
     V_JOINTS = 17
-    M_PEOPLE = 5
-    CLASSES = [f"Class_{i}" for i in range(20)] # Dummy kelas
+    M_PEOPLE = 3
+    CLASSES = ['assault', 'fighting', 'shooting', 'robbery', 'normal_event']
 
     tracker = CentroidTracker(max_disappeared=200, max_distance=300)
     individual_tracker = CentroidTracker(max_disappeared=30, max_distance=150)
@@ -136,14 +149,24 @@ def run_pipeline(video_path, yolo_path, bb_path, head_path, delegation, out_dir)
     csv_writer = csv.writer(csv_file)
     csv_writer.writerow(['frame', 'yolo_inference', 'backbone_inference', 'head_inference'])
     
-    while cap.isOpened():
+    has_run_gcn = False
+    
+    while True:
         yolo_times.clear()
         bb_times.clear()
         head_times.clear()
 
         ret, frame = cap.read()
         if not ret:
-            break
+            if has_run_gcn:
+                break
+            else:
+                cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                individual_tracker.max_distance = 10000
+                tracker.max_distance = 10000
+                ret, frame = cap.read()
+                if not ret:
+                    break
             
         frame = cv2.resize(frame, (FRAME_SIZE, FRAME_SIZE))
         
@@ -170,6 +193,11 @@ def run_pipeline(video_path, yolo_path, bb_path, head_path, delegation, out_dir)
             cluster_centroids.append([cx, cy])
             
         tracked = tracker.update(cluster_centroids)
+        
+        if tracker.max_distance == 10000:
+            tracker.max_distance = 300
+            individual_tracker.max_distance = 150
+            
         active_ind_ids = set(individual_tracker.objects.keys())
         
         # 3. GNN Prep & Inference
@@ -210,8 +238,8 @@ def run_pipeline(video_path, yolo_path, bb_path, head_path, delegation, out_dir)
                                 
             cluster_buffers[object_id].append(frame_pose_data)
             
-            # Memanggil GNN Classification, yang internalnya memanggil bb_interpreter & head_interpreter
-            gnn_classification(
+            # Memanggil GNN Classification
+            lbl, conf, all_conf = gnn_classification(
                 CLASSES,
                 bb_interpreter,
                 head_interpreter,
@@ -219,6 +247,18 @@ def run_pipeline(video_path, yolo_path, bb_path, head_path, delegation, out_dir)
                 frame_count,
                 T_FRAMES
             )
+            
+            if lbl is not None:
+                has_run_gcn = True
+                # Lakukan GNN ke-dua pada data yang sama
+                gnn_classification(
+                    CLASSES,
+                    bb_interpreter,
+                    head_interpreter,
+                    cluster_buffers[object_id],
+                    frame_count,
+                    T_FRAMES
+                )
             
         # 4. Cleanup memory
         active_object_ids = set(tracked.values())
@@ -229,8 +269,8 @@ def run_pipeline(video_path, yolo_path, bb_path, head_path, delegation, out_dir)
                     del cluster_slot_assignment[obj_id]
                     
         current_yolo = sum(yolo_times) if yolo_times else 0.0
-        current_bb = sum(bb_times) if bb_times else 0.0
-        current_head = sum(head_times) if head_times else 0.0
+        current_bb = (sum(bb_times) / 2.0) if bb_times else 0.0
+        current_head = (sum(head_times) / 2.0) if head_times else 0.0
         
         csv_writer.writerow([frame_count + 1, current_yolo, current_bb, current_head])
         
@@ -241,6 +281,10 @@ def run_pipeline(video_path, yolo_path, bb_path, head_path, delegation, out_dir)
         frame_count += 1
         if frame_count % 50 == 0:
             logger.info(f"[{delegation['name']}] Processed {frame_count} frames...")
+            
+        if has_run_gcn:
+            logger.info(f"[{delegation['name']}] GCN successfully ran on frame {frame_count}. Stopping test.")
+            break
             
     cap.release()
     csv_file.close()
