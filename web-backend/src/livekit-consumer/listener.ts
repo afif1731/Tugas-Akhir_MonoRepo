@@ -96,7 +96,10 @@ export class LivekitListener {
                   const trackName = track.name!;
                   const cameraId = trackName.replace('track_', '');
 
-                  const buffer = Buffer.from(frame.data);
+                  // Gunakan Buffer.allocUnsafe & set untuk memastikan DEEP COPY
+                  // sehingga tidak ada frame yang tertimpa jika SDK me-reuse memori buffer.
+                  const buffer = Buffer.allocUnsafe(frame.data.length);
+                  buffer.set(frame.data);
 
                   await frameStorageService.saveFrame(trackName, buffer);
 
@@ -205,7 +208,7 @@ export class LivekitListener {
         recentRecording.created_at.getTime() + 60_000 < currentDate.getTime()
       ) {
         logger.info(
-          `💤 [LiveKit Listener] Violence Recording for camera ${payload.camera_id} is on 1 minute cooldown (${recentRecording.created_at.getTime() + 60_000 < currentDate.getTime()})`,
+          `💤 [LiveKit Listener] Violence Recording for camera ${payload.camera_id} is on 1 minute cooldown (${recentRecording.created_at.getTime() + 60_000}) (${currentDate.getTime()})`,
         );
 
         return;
@@ -284,7 +287,10 @@ export class LivekitListener {
       }
     }
 
-    const fps = session.payload.fps || 30;
+    // Gunakan 50 FPS secara konstan karena kamera LiveKit menangkap video di 50 FPS (300 frame = 6 detik).
+    // Jika kita menggunakan session.payload.fps (kecepatan inferensi model, misal 16 FPS),
+    // ffmpeg akan menarik 300 frame menjadi lambat (18 detik) dan menyebabkan frame error/corrupt.
+    const fps = 50;
 
     const ffmpeg = spawn('ffmpeg', [
       '-y',
@@ -306,6 +312,8 @@ export class LivekitListener {
       'ultrafast',
       '-pix_fmt',
       'yuv420p',
+      '-r',
+      fps.toString(), // Paksa durasi akhir menjadi persis 6 detik (300 / 50)
       outputPath,
     ]);
 
@@ -333,8 +341,18 @@ export class LivekitListener {
 
       if (!canWrite) {
         await new Promise<void>(resolve => {
-          ffmpeg.stdin.once('drain', resolve);
-          ffmpeg.stdin.once('error', resolve);
+          const drainHandler = () => {
+            ffmpeg.stdin.removeListener('error', errorHandler);
+            resolve();
+          };
+
+          const errorHandler = () => {
+            ffmpeg.stdin.removeListener('drain', drainHandler);
+            resolve();
+          };
+
+          ffmpeg.stdin.once('drain', drainHandler);
+          ffmpeg.stdin.once('error', errorHandler);
         });
       }
     }
@@ -373,9 +391,9 @@ export class LivekitListener {
         }
       }
 
-      const duration = Math.round(
-        session.frames.length / (session.payload.fps || 30),
-      );
+      // Sama seperti di atas, kita gunakan 50 FPS konstan karena kamera berjalan di kecepatan tersebut.
+      const fps = 50;
+      const duration = Math.round(session.frames.length / fps);
 
       const camera = await prisma.cameras.findUnique({
         where: { id: session.cameraId },
