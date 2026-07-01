@@ -39,21 +39,27 @@ INDIVIDUAL_TRACKER_MAX_DISTANCE = 150
 
 SPATIAL_CLUSTERING_MAX_DISTANCE = 200
 
-def load_interpreter(model_path, model_name):
+_SHARED_DELEGATE = None
+
+def load_interpreter(model_path, model_name, force_cpu=False):
+    global _SHARED_DELEGATE
     logger.info(f"Loading {model_name}...")
 
-    try:
-        delegate_lib = os.getenv('EDGETPU_SHARED_LIB', 'libedgetpu.so.1')
+    if not force_cpu:
+        try:
+            delegate_lib = os.getenv('EDGETPU_SHARED_LIB', 'libedgetpu.so.1')
 
-        delegate = tflite.load_delegate(delegate_lib)
-        interpreter = tflite.Interpreter(model_path=model_path, experimental_delegates=[delegate], num_threads=4)
-        interpreter.allocate_tensors()
-        
-        interpreter._delegate_ref = delegate 
-        logger.info(f"Successfully loaded {model_name} with tflite_runtime delegate (Edge TPU).")
-        return interpreter
-    except Exception as e:
-        logger.warning(f"Edge TPU delegate load failed for {model_name}: {e}. Falling back to CPU...")
+            if _SHARED_DELEGATE is None:
+                _SHARED_DELEGATE = tflite.load_delegate(delegate_lib)
+
+            interpreter = tflite.Interpreter(model_path=model_path, experimental_delegates=[_SHARED_DELEGATE], num_threads=4)
+            interpreter.allocate_tensors()
+            
+            interpreter._delegate_ref = _SHARED_DELEGATE 
+            logger.info(f"Successfully loaded {model_name} with tflite_runtime delegate (Edge TPU).")
+            return interpreter
+        except Exception as e:
+            logger.warning(f"Edge TPU delegate load failed for {model_name}: {e}. Falling back to CPU...")
 
     interpreter = tflite.Interpreter(model_path=model_path, num_threads=4)
     interpreter.allocate_tensors()
@@ -112,7 +118,7 @@ def handle_client(conn, addr):
         if run_ai:
             yolo_interpreter = load_interpreter(yolo_path, "YOLO Pose")
             gnn_backbone_interpreter = load_interpreter(gnn_backbone_path, "GNN-TCN Backbone")
-            gnn_head_interpreter = load_interpreter(gnn_head_path, "GNN-TCN Head")
+            gnn_head_interpreter = load_interpreter(gnn_head_path, "GNN-TCN Head", force_cpu=True)
         else:
             logger.info(f"[{camera_id}] AI Inference is disabled.")
 
